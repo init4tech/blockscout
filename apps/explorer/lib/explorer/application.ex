@@ -348,7 +348,8 @@ defmodule Explorer.Application do
         Hammer.child_for_supervisor() |> configure_mode_dependent_process(:api),
         configure_mode_dependent_process(Explorer.ThirdPartyIntegrations.Dynamic.Strategy, :api),
         # keep at the end
-        configure_libcluster()
+        configure_libcluster(),
+        configure_mode_dependent_process({Oban, Application.fetch_env!(:explorer, Oban)}, :api)
       ]
       |> List.flatten()
 
