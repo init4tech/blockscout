@@ -104,7 +104,8 @@ for repo <- [
       Explorer.Repo.Stability,
       Explorer.Repo.Zilliqa,
       Explorer.Repo.ZkSync,
-      Explorer.Repo.Neon
+      Explorer.Repo.Neon,
+      Explorer.Repo.Signet
     ] do
   config :explorer, repo,
     url: ConfigHelper.parse_url_env_var("DATABASE_URL"),

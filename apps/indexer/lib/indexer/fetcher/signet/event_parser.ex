@@ -37,6 +37,9 @@ defmodule Indexer.Fetcher.Signet.EventParser do
 
   alias Indexer.Fetcher.Signet.Abi
 
+  # Size of the Order event header: deadline (32) + inputs_offset (32) + outputs_offset (32)
+  @order_header_size 96
+
   @doc """
   Parse logs from the RollupOrders contract.
 
@@ -46,18 +49,61 @@ defmodule Indexer.Fetcher.Signet.EventParser do
   @spec parse_rollup_logs([map()]) :: {:ok, {[map()], [map()]}}
   def parse_rollup_logs(logs) when is_list(logs) do
     {orders, fills, sweeps} =
-      Enum.reduce(logs, {[], [], []}, fn log, acc ->
-        classify_and_parse_log(log, acc)
-      end)
+      logs
+      |> Enum.map(&normalize_log/1)
+      |> Enum.reduce({[], [], []}, &classify_and_parse_log/2)
 
-    # Associate sweeps with their corresponding orders by transaction hash
     orders_with_sweeps = associate_sweeps_with_orders(orders, sweeps)
 
     {:ok, {Enum.reverse(orders_with_sweeps), Enum.reverse(fills)}}
   end
 
+  @doc """
+  Parse Filled events from the HostOrders contract.
+
+  Returns {:ok, fills} where fills is a list of maps ready for database import.
+  """
+  @spec parse_host_filled_logs([map()]) :: {:ok, [map()]}
+  def parse_host_filled_logs(logs) when is_list(logs) do
+    filled_topic = Abi.filled_event_topic()
+
+    fills =
+      logs
+      |> Enum.map(&normalize_log/1)
+      |> Enum.reduce([], fn log, acc ->
+        if Enum.at(log.topics, 0) == filled_topic do
+          case parse_filled_event(log) do
+            {:ok, fill} ->
+              [fill | acc]
+
+            {:error, reason} ->
+              Logger.warning("Failed to parse host Filled event: #{inspect(reason)}")
+              acc
+          end
+        else
+          acc
+        end
+      end)
+      |> Enum.reverse()
+
+    {:ok, fills}
+  end
+
+  # Normalize log keys from JSON-RPC string keys or Elixir atom keys into a
+  # consistent atom-keyed map. Called once at the entry point so all downstream
+  # functions work with a single format.
+  defp normalize_log(log) when is_map(log) do
+    %{
+      topics: Map.get(log, "topics") || Map.get(log, :topics) || [],
+      data: Map.get(log, "data") || Map.get(log, :data) || "",
+      transaction_hash: Map.get(log, "transactionHash") || Map.get(log, :transaction_hash),
+      block_number: Map.get(log, "blockNumber") || Map.get(log, :block_number),
+      log_index: Map.get(log, "logIndex") || Map.get(log, :log_index)
+    }
+  end
+
   defp classify_and_parse_log(log, {orders_acc, fills_acc, sweeps_acc}) do
-    topic = get_topic(log, 0)
+    topic = Enum.at(log.topics, 0)
 
     cond do
       topic == Abi.order_event_topic() ->
@@ -88,107 +134,73 @@ defmodule Indexer.Fetcher.Signet.EventParser do
     {orders, fills, sweeps}
   end
 
-  @doc """
-  Parse Filled events from the HostOrders contract.
-
-  Returns {:ok, fills} where fills is a list of maps ready for database import.
-  """
-  @spec parse_host_filled_logs([map()]) :: {:ok, [map()]}
-  def parse_host_filled_logs(logs) when is_list(logs) do
-    filled_topic = Abi.filled_event_topic()
-
-    fills =
-      logs
-      |> Enum.filter(fn log -> get_topic(log, 0) == filled_topic end)
-      |> Enum.map(&parse_filled_event/1)
-      |> Enum.filter(fn
-        {:ok, _} ->
-          true
-
-        {:error, reason} ->
-          Logger.warning("Failed to parse host Filled event: #{inspect(reason)}")
-          false
-      end)
-      |> Enum.map(fn {:ok, fill} -> fill end)
-
-    {:ok, fills}
-  end
-
-  # Parse Order event
-  # Order(uint256 deadline, Input[] inputs, Output[] outputs)
+  # Parse Order event: Order(uint256 deadline, Input[] inputs, Output[] outputs)
   defp parse_order_event(log) do
-    data = get_log_data(log)
+    data = decode_hex_data(log.data)
 
-    with {:ok, decoded} <- decode_order_data(data) do
-      {deadline, inputs, outputs} = decoded
-
-      order = %{
-        deadline: deadline,
-        block_number: parse_block_number(log),
-        transaction_hash: get_transaction_hash(log),
-        log_index: parse_log_index(log),
-        inputs_json: Jason.encode!(format_inputs(inputs)),
-        outputs_json: Jason.encode!(format_outputs(outputs))
-      }
-
-      {:ok, order}
+    with {:ok, {deadline, inputs, outputs}} <- decode_order_data(data),
+         {:ok, block_number} <- parse_block_number(log),
+         {:ok, log_index} <- parse_log_index(log) do
+      {:ok,
+       %{
+         deadline: deadline,
+         block_number: block_number,
+         transaction_hash: format_transaction_hash(log.transaction_hash),
+         log_index: log_index,
+         inputs_json: Jason.encode!(format_inputs(inputs)),
+         outputs_json: Jason.encode!(format_outputs(outputs))
+       }}
     end
   end
 
-  # Parse Filled event
-  # Filled(Output[] outputs)
+  # Parse Filled event: Filled(Output[] outputs)
   defp parse_filled_event(log) do
-    data = get_log_data(log)
+    data = decode_hex_data(log.data)
 
-    with {:ok, outputs} <- decode_filled_data(data) do
-      fill = %{
-        block_number: parse_block_number(log),
-        transaction_hash: get_transaction_hash(log),
-        log_index: parse_log_index(log),
-        outputs_json: Jason.encode!(format_outputs(outputs))
-      }
-
-      {:ok, fill}
+    with {:ok, outputs} <- decode_filled_data(data),
+         {:ok, block_number} <- parse_block_number(log),
+         {:ok, log_index} <- parse_log_index(log) do
+      {:ok,
+       %{
+         block_number: block_number,
+         transaction_hash: format_transaction_hash(log.transaction_hash),
+         log_index: log_index,
+         outputs_json: Jason.encode!(format_outputs(outputs))
+       }}
     end
   end
 
-  # Parse Sweep event
-  # Sweep(address indexed recipient, address indexed token, uint256 amount)
-  # Note: recipient and token are indexed (in topics), amount is in data
+  # Parse Sweep event: Sweep(address indexed recipient, address indexed token, uint256 amount)
   defp parse_sweep_event(log) do
-    data = get_log_data(log)
+    data = decode_hex_data(log.data)
 
     with {:ok, amount} <- decode_sweep_data(data) do
-      # recipient is in topic[1], token is in topic[2]
-      recipient = get_indexed_address(log, 1)
-      token = get_indexed_address(log, 2)
-
-      sweep = %{
-        transaction_hash: get_transaction_hash(log),
-        recipient: recipient,
-        token: token,
-        amount: amount
-      }
-
-      {:ok, sweep}
+      {:ok,
+       %{
+         transaction_hash: format_transaction_hash(log.transaction_hash),
+         recipient: decode_indexed_address(Enum.at(log.topics, 1)),
+         token: decode_indexed_address(Enum.at(log.topics, 2)),
+         amount: amount
+       }}
     end
   end
 
-  # Decode Order event data
-  # Order(uint256 deadline, Input[] inputs, Output[] outputs)
-  # Input = (address token, uint256 amount)
-  # Output = (address token, uint256 amount, address recipient, uint32 chainId)
-  defp decode_order_data(data) when is_binary(data) do
-    # ABI decode: uint256, dynamic array offset, dynamic array offset
+  # ABI decoders
+
+  defp decode_order_data(data) when is_binary(data) and byte_size(data) >= @order_header_size do
     <<deadline::unsigned-big-integer-size(256), inputs_offset::unsigned-big-integer-size(256),
       outputs_offset::unsigned-big-integer-size(256), rest::binary>> = data
 
-    # Parse inputs array - offset is from start of data (after first 32 bytes)
-    inputs_data = binary_part(rest, inputs_offset - 96, byte_size(rest) - inputs_offset + 96)
+    # ABI offsets are from the start of the data payload; subtract the header
+    # size to get the position within `rest` (which starts after the header).
+    inputs_data =
+      binary_part(rest, inputs_offset - @order_header_size, byte_size(rest) - inputs_offset + @order_header_size)
+
     inputs = decode_input_array(inputs_data)
 
-    # Parse outputs array
-    outputs_data = binary_part(rest, outputs_offset - 96, byte_size(rest) - outputs_offset + 96)
+    outputs_data =
+      binary_part(rest, outputs_offset - @order_header_size, byte_size(rest) - outputs_offset + @order_header_size)
+
     outputs = decode_output_array(outputs_data)
 
     {:ok, {deadline, inputs, outputs}}
@@ -200,12 +212,9 @@ defmodule Indexer.Fetcher.Signet.EventParser do
 
   defp decode_order_data(_), do: {:error, :invalid_data}
 
-  # Decode Filled event data
-  # Filled(Output[] outputs)
-  defp decode_filled_data(data) when is_binary(data) do
+  defp decode_filled_data(data) when is_binary(data) and byte_size(data) >= 32 do
     <<_offset::unsigned-big-integer-size(256), rest::binary>> = data
-    outputs = decode_output_array(rest)
-    {:ok, outputs}
+    {:ok, decode_output_array(rest)}
   rescue
     e ->
       Logger.error("Error decoding Filled data: #{inspect(e)}")
@@ -214,21 +223,12 @@ defmodule Indexer.Fetcher.Signet.EventParser do
 
   defp decode_filled_data(_), do: {:error, :invalid_data}
 
-  # Decode Sweep event data
-  # Only amount is in data (recipient and token are indexed)
-  defp decode_sweep_data(data) when is_binary(data) do
-    <<amount::unsigned-big-integer-size(256)>> = data
-    {:ok, amount}
-  rescue
-    e ->
-      Logger.error("Error decoding Sweep data: #{inspect(e)}")
-      {:error, :decode_failed}
-  end
+  defp decode_sweep_data(<<amount::unsigned-big-integer-size(256)>>), do: {:ok, amount}
 
   defp decode_sweep_data(_), do: {:error, :invalid_data}
 
-  # Decode array of Input tuples
-  # Input = (address token, uint256 amount)
+  # Array decoders
+
   defp decode_input_array(<<length::unsigned-big-integer-size(256), rest::binary>>) do
     decode_inputs(rest, length, [])
   end
@@ -240,12 +240,9 @@ defmodule Indexer.Fetcher.Signet.EventParser do
          count,
          acc
        ) do
-    input = {token, amount}
-    decode_inputs(rest, count - 1, [input | acc])
+    decode_inputs(rest, count - 1, [{token, amount} | acc])
   end
 
-  # Decode array of Output tuples
-  # Output = (address token, uint256 amount, address recipient, uint32 chainId)
   defp decode_output_array(<<length::unsigned-big-integer-size(256), rest::binary>>) do
     decode_outputs(rest, length, [])
   end
@@ -259,23 +256,23 @@ defmodule Indexer.Fetcher.Signet.EventParser do
          count,
          acc
        ) do
-    # Output struct order: token, amount, recipient, chainId
-    output = {token, amount, recipient, chain_id}
-    decode_outputs(rest, count - 1, [output | acc])
+    decode_outputs(rest, count - 1, [{token, amount, recipient, chain_id} | acc])
   end
 
-  # Associate sweep events with their corresponding orders by transaction hash
+  # Sweep association
+
   defp associate_sweeps_with_orders(orders, sweeps) do
     sweeps_by_tx = Enum.group_by(sweeps, & &1.transaction_hash)
 
     Enum.map(orders, fn order ->
       case Map.get(sweeps_by_tx, order.transaction_hash) do
-        [sweep | _] ->
-          Map.merge(order, %{
-            sweep_recipient: sweep.recipient,
-            sweep_token: sweep.token,
-            sweep_amount: sweep.amount
-          })
+        [sweep] ->
+          attach_sweep(order, sweep)
+
+        [sweep | rest] ->
+          Logger.warning("Multiple sweeps (#{length(rest) + 1}) for tx #{order.transaction_hash}, using first")
+
+          attach_sweep(order, sweep)
 
         _ ->
           order
@@ -283,18 +280,22 @@ defmodule Indexer.Fetcher.Signet.EventParser do
     end)
   end
 
-  # Format inputs for JSON storage
+  defp attach_sweep(order, sweep) do
+    Map.merge(order, %{
+      sweep_recipient: sweep.recipient,
+      sweep_token: sweep.token,
+      sweep_amount: sweep.amount
+    })
+  end
+
+  # Formatters
+
   defp format_inputs(inputs) do
     Enum.map(inputs, fn {token, amount} ->
-      %{
-        "token" => format_address(token),
-        "amount" => Integer.to_string(amount)
-      }
+      %{"token" => format_address(token), "amount" => Integer.to_string(amount)}
     end)
   end
 
-  # Format outputs for JSON storage
-  # Output = (token, amount, recipient, chainId)
   defp format_outputs(outputs) do
     Enum.map(outputs, fn {token, amount, recipient, chain_id} ->
       %{
@@ -310,79 +311,44 @@ defmodule Indexer.Fetcher.Signet.EventParser do
     "0x" <> Base.encode16(bytes, case: :lower)
   end
 
-  defp get_topic(log, index) do
-    topics = Map.get(log, "topics") || Map.get(log, :topics) || []
-    Enum.at(topics, index)
+  defp format_transaction_hash("0x" <> _ = hash), do: hash
+  defp format_transaction_hash(bytes) when is_binary(bytes), do: "0x" <> Base.encode16(bytes, case: :lower)
+  defp format_transaction_hash(_), do: nil
+
+  # Field parsers
+
+  defp decode_hex_data("0x" <> hex), do: Base.decode16!(hex, case: :mixed)
+  defp decode_hex_data(raw) when is_binary(raw), do: raw
+  defp decode_hex_data(_), do: <<>>
+
+  defp decode_indexed_address("0x" <> hex) do
+    address_hex = String.slice(hex, -40, 40)
+    Base.decode16!(address_hex, case: :mixed)
   end
 
-  # Get an indexed address from topics (topics contain 32-byte padded addresses)
-  defp get_indexed_address(log, topic_index) do
-    topic = get_topic(log, topic_index)
+  defp decode_indexed_address(bytes) when is_binary(bytes) and byte_size(bytes) == 32 do
+    binary_part(bytes, 12, 20)
+  end
 
-    case topic do
-      "0x" <> hex ->
-        # Take last 40 chars (20 bytes) of the 64-char hex string
-        address_hex = String.slice(hex, -40, 40)
-        Base.decode16!(address_hex, case: :mixed)
+  defp decode_indexed_address(_), do: nil
 
-      bytes when is_binary(bytes) and byte_size(bytes) == 32 ->
-        # Take last 20 bytes
-        binary_part(bytes, 12, 20)
-
-      _ ->
-        nil
+  defp parse_block_number(%{block_number: "0x" <> hex}) do
+    case Integer.parse(hex, 16) do
+      {num, ""} -> {:ok, num}
+      _ -> {:error, {:invalid_block_number, "0x" <> hex}}
     end
   end
 
-  defp get_log_data(log) do
-    data = Map.get(log, "data") || Map.get(log, :data) || ""
+  defp parse_block_number(%{block_number: num}) when is_integer(num), do: {:ok, num}
+  defp parse_block_number(%{block_number: other}), do: {:error, {:invalid_block_number, other}}
 
-    case data do
-      "0x" <> hex -> Base.decode16!(hex, case: :mixed)
-      hex when is_binary(hex) -> Base.decode16!(hex, case: :mixed)
-      _ -> ""
+  defp parse_log_index(%{log_index: "0x" <> hex}) do
+    case Integer.parse(hex, 16) do
+      {num, ""} -> {:ok, num}
+      _ -> {:error, {:invalid_log_index, "0x" <> hex}}
     end
   end
 
-  defp get_transaction_hash(log) do
-    hash = Map.get(log, "transactionHash") || Map.get(log, :transaction_hash)
-
-    case hash do
-      "0x" <> _ -> hash
-      bytes when is_binary(bytes) -> "0x" <> Base.encode16(bytes, case: :lower)
-      _ -> nil
-    end
-  end
-
-  defp parse_block_number(log) do
-    block = Map.get(log, "blockNumber") || Map.get(log, :block_number)
-
-    case block do
-      "0x" <> hex ->
-        {num, ""} = Integer.parse(hex, 16)
-        num
-
-      num when is_integer(num) ->
-        num
-
-      _ ->
-        0
-    end
-  end
-
-  defp parse_log_index(log) do
-    index = Map.get(log, "logIndex") || Map.get(log, :log_index)
-
-    case index do
-      "0x" <> hex ->
-        {num, ""} = Integer.parse(hex, 16)
-        num
-
-      num when is_integer(num) ->
-        num
-
-      _ ->
-        0
-    end
-  end
+  defp parse_log_index(%{log_index: num}) when is_integer(num), do: {:ok, num}
+  defp parse_log_index(%{log_index: other}), do: {:error, {:invalid_log_index, other}}
 end

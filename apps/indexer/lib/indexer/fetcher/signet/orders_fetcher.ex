@@ -339,7 +339,7 @@ defmodule Indexer.Fetcher.Signet.OrdersFetcher do
     if end_block <= 0 do
       {:ok, state, :done}
     else
-      start_block = max(0, end_block - 1000)
+      start_block = max(0, end_block - config.l2_rpc_block_range)
 
       with {:ok, logs} <-
              fetch_logs(
@@ -392,9 +392,16 @@ defmodule Indexer.Fetcher.Signet.OrdersFetcher do
     }
 
     case EthereumJSONRPC.json_rpc(request, json_rpc_named_arguments) do
-      {:ok, hex_block} ->
-        {block, ""} = Integer.parse(String.trim_leading(hex_block, "0x"), 16)
-        {:ok, block}
+      {:ok, hex_block} when is_binary(hex_block) ->
+        hex = String.trim_leading(hex_block, "0x")
+
+        case Integer.parse(hex, 16) do
+          {block, ""} -> {:ok, block}
+          _ -> {:error, {:invalid_block_number, hex_block}}
+        end
+
+      {:ok, unexpected} ->
+        {:error, {:unexpected_response, unexpected}}
 
       {:error, reason} ->
         {:error, reason}
@@ -431,13 +438,10 @@ defmodule Indexer.Fetcher.Signet.OrdersFetcher do
   defp import_orders([]), do: :ok
 
   defp import_orders(orders) do
-    {:ok, _} =
-      Chain.import(%{
-        signet_orders: %{params: orders},
-        timeout: :infinity
-      })
-
-    :ok
+    case Chain.import(%{signet_orders: %{params: orders}, timeout: :infinity}) do
+      {:ok, _} -> :ok
+      {:error, step, reason, _} -> {:error, {step, reason}}
+    end
   end
 
   defp import_fills([], _chain_type), do: :ok
@@ -445,13 +449,9 @@ defmodule Indexer.Fetcher.Signet.OrdersFetcher do
   defp import_fills(fills, chain_type) do
     fills_with_chain = Enum.map(fills, &Map.put(&1, :chain_type, chain_type))
 
-    {:ok, _} =
-      Chain.import(%{
-        signet_fills: %{params: fills_with_chain},
-        timeout: :infinity
-      })
-
-    :ok
+    case Chain.import(%{signet_fills: %{params: fills_with_chain}, timeout: :infinity}) do
+      {:ok, _} -> :ok
+      {:error, step, reason, _} -> {:error, {step, reason}}
+    end
   end
-
 end

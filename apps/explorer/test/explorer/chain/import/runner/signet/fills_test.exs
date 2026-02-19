@@ -2,15 +2,21 @@ defmodule Explorer.Chain.Import.Runner.Signet.FillsTest do
   use Explorer.DataCase
 
   alias Ecto.Multi
+  alias Explorer.Chain.Hash
   alias Explorer.Chain.Import.Runner.Signet.Fills, as: FillsRunner
   alias Explorer.Chain.Signet.Fill
   alias Explorer.Repo
 
   @moduletag :signet
 
+  defp cast_hash!(bytes) do
+    {:ok, hash} = Hash.Full.cast(bytes)
+    hash
+  end
+
   describe "run/3" do
     test "inserts a new rollup fill" do
-      tx_hash = <<1::256>>
+      tx_hash = cast_hash!(<<1::256>>)
 
       params = [
         %{
@@ -36,7 +42,7 @@ defmodule Explorer.Chain.Import.Runner.Signet.FillsTest do
     end
 
     test "inserts a new host fill" do
-      tx_hash = <<2::256>>
+      tx_hash = cast_hash!(<<2::256>>)
 
       params = [
         %{
@@ -59,7 +65,7 @@ defmodule Explorer.Chain.Import.Runner.Signet.FillsTest do
     end
 
     test "same transaction can have fills on different chains" do
-      tx_hash = <<3::256>>
+      tx_hash = cast_hash!(<<3::256>>)
 
       rollup_params = [
         %{
@@ -95,29 +101,16 @@ defmodule Explorer.Chain.Import.Runner.Signet.FillsTest do
       # Should have two fills (one per chain type)
       assert Repo.aggregate(Fill, :count) == 2
 
-      tx_hash_struct = %Explorer.Chain.Hash.Full{byte_count: 32, bytes: tx_hash}
-
       # Verify both exist
-      rollup_fill =
-        Repo.get_by(Fill,
-          chain_type: :rollup,
-          transaction_hash: tx_hash_struct,
-          log_index: 0
-        )
-
-      host_fill =
-        Repo.get_by(Fill,
-          chain_type: :host,
-          transaction_hash: tx_hash_struct,
-          log_index: 0
-        )
+      rollup_fill = Repo.get_by(Fill, chain_type: :rollup, transaction_hash: tx_hash, log_index: 0)
+      host_fill = Repo.get_by(Fill, chain_type: :host, transaction_hash: tx_hash, log_index: 0)
 
       assert rollup_fill.block_number == 100
       assert host_fill.block_number == 200
     end
 
     test "handles duplicate fills with upsert on composite primary key" do
-      tx_hash = <<4::256>>
+      tx_hash = cast_hash!(<<4::256>>)
 
       params1 = [
         %{
@@ -160,7 +153,7 @@ defmodule Explorer.Chain.Import.Runner.Signet.FillsTest do
     end
 
     test "different log_index creates separate fills" do
-      tx_hash = <<5::256>>
+      tx_hash = cast_hash!(<<5::256>>)
 
       params = [
         %{
@@ -197,7 +190,7 @@ defmodule Explorer.Chain.Import.Runner.Signet.FillsTest do
           %{
             chain_type: if(rem(i, 2) == 0, do: :host, else: :rollup),
             block_number: 100 + i,
-            transaction_hash: <<100 + i::256>>,
+            transaction_hash: cast_hash!(<<100 + i::256>>),
             log_index: 0,
             outputs_json:
               Jason.encode!([

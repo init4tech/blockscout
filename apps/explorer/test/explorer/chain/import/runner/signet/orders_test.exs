@@ -2,15 +2,21 @@ defmodule Explorer.Chain.Import.Runner.Signet.OrdersTest do
   use Explorer.DataCase
 
   alias Ecto.Multi
+  alias Explorer.Chain.Hash
   alias Explorer.Chain.Import.Runner.Signet.Orders, as: OrdersRunner
   alias Explorer.Chain.Signet.Order
   alias Explorer.Repo
 
   @moduletag :signet
 
+  defp cast_hash!(bytes) do
+    {:ok, hash} = Hash.Full.cast(bytes)
+    hash
+  end
+
   describe "run/3" do
     test "inserts a new order" do
-      tx_hash = <<1::256>>
+      tx_hash = cast_hash!(<<1::256>>)
 
       params = [
         %{
@@ -37,7 +43,7 @@ defmodule Explorer.Chain.Import.Runner.Signet.OrdersTest do
     end
 
     test "handles duplicate orders with upsert on composite primary key" do
-      tx_hash = <<2::256>>
+      tx_hash = cast_hash!(<<2::256>>)
 
       params = [
         %{
@@ -80,14 +86,13 @@ defmodule Explorer.Chain.Import.Runner.Signet.OrdersTest do
       assert Repo.aggregate(Order, :count) == 1
 
       # Order should be updated
-      tx_hash_struct = %Explorer.Chain.Hash.Full{byte_count: 32, bytes: tx_hash}
-      order = Repo.get_by(Order, transaction_hash: tx_hash_struct, log_index: 0)
+      order = Repo.get_by(Order, transaction_hash: tx_hash, log_index: 0)
       assert order.deadline == 1_700_000_001
       assert order.block_number == 101
     end
 
     test "different log_index creates separate orders" do
-      tx_hash = <<3::256>>
+      tx_hash = cast_hash!(<<3::256>>)
 
       params = [
         %{
@@ -121,9 +126,9 @@ defmodule Explorer.Chain.Import.Runner.Signet.OrdersTest do
     end
 
     test "inserts order with sweep data" do
-      tx_hash = <<4::256>>
-      sweep_recipient = <<5::160>>
-      sweep_token = <<6::160>>
+      tx_hash = cast_hash!(<<4::256>>)
+      {:ok, sweep_recipient} = Explorer.Chain.Hash.Address.cast(<<5::160>>)
+      {:ok, sweep_token} = Explorer.Chain.Hash.Address.cast(<<6::160>>)
 
       params = [
         %{
@@ -136,7 +141,7 @@ defmodule Explorer.Chain.Import.Runner.Signet.OrdersTest do
             Jason.encode!([%{"token" => "0x5678", "recipient" => "0x9abc", "amount" => "500", "chainId" => "1"}]),
           sweep_recipient: sweep_recipient,
           sweep_token: sweep_token,
-          sweep_amount: Decimal.new("12345")
+          sweep_amount: %Explorer.Chain.Wei{value: Decimal.new("12345")}
         }
       ]
 
@@ -154,7 +159,7 @@ defmodule Explorer.Chain.Import.Runner.Signet.OrdersTest do
           %{
             deadline: 1_700_000_000 + i,
             block_number: 100 + i,
-            transaction_hash: <<100 + i::256>>,
+            transaction_hash: cast_hash!(<<100 + i::256>>),
             log_index: 0,
             inputs_json: Jason.encode!([%{"token" => "0x#{i}", "amount" => "#{i * 1000}"}]),
             outputs_json:

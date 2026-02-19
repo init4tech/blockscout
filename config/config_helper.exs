@@ -24,6 +24,7 @@ defmodule ConfigHelper do
         {:zilliqa, nil} => [Explorer.Repo.Zilliqa],
         {:zksync, nil} => [Explorer.Repo.ZkSync],
         {:neon, nil} => [Explorer.Repo.Neon],
+        {:signet, nil} => [Explorer.Repo.Signet],
         {:optimism, :celo} => [
           Explorer.Repo.Optimism,
           Explorer.Repo.Celo
@@ -424,7 +425,8 @@ defmodule ConfigHelper do
     "zilliqa" => :zilliqa,
     "zksync" => :zksync,
     "neon" => :neon,
-    "optimism-celo" => {:optimism, :celo}
+    "optimism-celo" => {:optimism, :celo},
+    "signet" => :signet
   }
 
   @doc """

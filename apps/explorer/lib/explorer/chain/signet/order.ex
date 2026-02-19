@@ -68,7 +68,7 @@ defmodule Explorer.Chain.Signet.Order do
   @doc """
     Validates that the `attrs` are valid.
   """
-  @spec changeset(Ecto.Schema.t(), map()) :: Ecto.Schema.t()
+  @spec changeset(Ecto.Schema.t(), map()) :: Ecto.Changeset.t()
   def changeset(%__MODULE__{} = order, attrs \\ %{}) do
     order
     |> cast(attrs, @allowed_attrs)

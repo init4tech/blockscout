@@ -16,9 +16,15 @@ defmodule Indexer.Fetcher.Signet.OrdersFetcherTest do
   import Explorer.Factory
 
   alias Explorer.Chain
+  alias Explorer.Chain.Hash
   alias Indexer.Fetcher.Signet.OrdersFetcher
 
   @moduletag :signet
+
+  defp cast_hash!(bytes) do
+    {:ok, hash} = Hash.Full.cast(bytes)
+    hash
+  end
 
   describe "OrdersFetcher configuration" do
     test "child_spec returns proper supervisor config" do
@@ -46,7 +52,7 @@ defmodule Indexer.Fetcher.Signet.OrdersFetcherTest do
 
   describe "database import via Chain.import/1" do
     test "imports order through Chain.import" do
-      tx_hash = <<1::256>>
+      tx_hash = cast_hash!(<<1::256>>)
 
       order_params = %{
         deadline: 1_700_000_000,
@@ -69,7 +75,7 @@ defmodule Indexer.Fetcher.Signet.OrdersFetcherTest do
     end
 
     test "imports fill through Chain.import" do
-      tx_hash = <<2::256>>
+      tx_hash = cast_hash!(<<2::256>>)
 
       fill_params = %{
         chain_type: :rollup,
@@ -94,7 +100,7 @@ defmodule Indexer.Fetcher.Signet.OrdersFetcherTest do
       order_params = %{
         deadline: 1_700_000_000,
         block_number: 100,
-        transaction_hash: <<10::256>>,
+        transaction_hash: cast_hash!(<<10::256>>),
         log_index: 0,
         inputs_json: Jason.encode!([%{"token" => "0x1111", "amount" => "1000"}]),
         outputs_json:
@@ -104,7 +110,7 @@ defmodule Indexer.Fetcher.Signet.OrdersFetcherTest do
       fill_params = %{
         chain_type: :host,
         block_number: 200,
-        transaction_hash: <<20::256>>,
+        transaction_hash: cast_hash!(<<20::256>>),
         log_index: 0,
         outputs_json:
           Jason.encode!([%{"token" => "0x2222", "recipient" => "0x3333", "amount" => "500", "chainId" => "1"}])

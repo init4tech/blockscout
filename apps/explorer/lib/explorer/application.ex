@@ -378,7 +378,8 @@ defmodule Explorer.Application do
         Explorer.Repo.Stability,
         Explorer.Repo.Suave,
         Explorer.Repo.Zilliqa,
-        Explorer.Repo.ZkSync
+        Explorer.Repo.ZkSync,
+        Explorer.Repo.Signet
       ]
     else
       []
