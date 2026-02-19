@@ -52,7 +52,7 @@ defmodule Indexer.Fetcher.Signet.OrdersFetcher do
   import Ecto.Query
 
   alias Explorer.Chain
-  alias Explorer.Chain.Signet.{Order, Fill}
+  alias Explorer.Chain.Signet.{Fill, Order}
   alias Indexer.BufferedTask
   alias Indexer.Fetcher.Signet.{Abi, EventParser, ReorgHandler}
   alias Indexer.Helper, as: IndexerHelper
@@ -325,9 +325,7 @@ defmodule Indexer.Fetcher.Signet.OrdersFetcher do
            ),
          {:ok, fills} <- EventParser.parse_host_filled_logs(logs),
          :ok <- import_fills(fills, :host) do
-      Logger.info(
-        "Processed host events: #{length(fills)} fills (blocks #{start_block}-#{end_block})"
-      )
+      Logger.info("Processed host events: #{length(fills)} fills (blocks #{start_block}-#{end_block})")
 
       updated_task_data = put_in(state.task_data.check_new_host.start_block, end_block + 1)
       {:ok, %{state | task_data: updated_task_data}}

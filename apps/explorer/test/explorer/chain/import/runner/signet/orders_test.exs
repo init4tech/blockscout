@@ -19,7 +19,8 @@ defmodule Explorer.Chain.Import.Runner.Signet.OrdersTest do
           transaction_hash: tx_hash,
           log_index: 0,
           inputs_json: Jason.encode!([%{"token" => "0x1234", "amount" => "1000"}]),
-          outputs_json: Jason.encode!([%{"token" => "0x5678", "recipient" => "0x9abc", "amount" => "500", "chainId" => "1"}])
+          outputs_json:
+            Jason.encode!([%{"token" => "0x5678", "recipient" => "0x9abc", "amount" => "500", "chainId" => "1"}])
         }
       ]
 
@@ -45,7 +46,8 @@ defmodule Explorer.Chain.Import.Runner.Signet.OrdersTest do
           transaction_hash: tx_hash,
           log_index: 0,
           inputs_json: Jason.encode!([%{"token" => "0x1234", "amount" => "1000"}]),
-          outputs_json: Jason.encode!([%{"token" => "0x5678", "recipient" => "0x9abc", "amount" => "500", "chainId" => "1"}])
+          outputs_json:
+            Jason.encode!([%{"token" => "0x5678", "recipient" => "0x9abc", "amount" => "500", "chainId" => "1"}])
         }
       ]
 
@@ -58,12 +60,16 @@ defmodule Explorer.Chain.Import.Runner.Signet.OrdersTest do
       # Insert second time with same tx_hash + log_index but different data
       updated_params = [
         %{
-          deadline: 1_700_000_001,  # Different deadline
-          block_number: 101,        # Different block
+          # Different deadline
+          deadline: 1_700_000_001,
+          # Different block
+          block_number: 101,
           transaction_hash: tx_hash,
-          log_index: 0,             # Same log_index
+          # Same log_index
+          log_index: 0,
           inputs_json: Jason.encode!([%{"token" => "0x1234", "amount" => "2000"}]),
-          outputs_json: Jason.encode!([%{"token" => "0x5678", "recipient" => "0x9abc", "amount" => "1000", "chainId" => "1"}])
+          outputs_json:
+            Jason.encode!([%{"token" => "0x5678", "recipient" => "0x9abc", "amount" => "1000", "chainId" => "1"}])
         }
       ]
 
@@ -90,15 +96,18 @@ defmodule Explorer.Chain.Import.Runner.Signet.OrdersTest do
           transaction_hash: tx_hash,
           log_index: 0,
           inputs_json: Jason.encode!([%{"token" => "0x1111", "amount" => "1000"}]),
-          outputs_json: Jason.encode!([%{"token" => "0x2222", "recipient" => "0x3333", "amount" => "500", "chainId" => "1"}])
+          outputs_json:
+            Jason.encode!([%{"token" => "0x2222", "recipient" => "0x3333", "amount" => "500", "chainId" => "1"}])
         },
         %{
           deadline: 1_700_000_001,
           block_number: 100,
           transaction_hash: tx_hash,
-          log_index: 1,  # Different log_index
+          # Different log_index
+          log_index: 1,
           inputs_json: Jason.encode!([%{"token" => "0x4444", "amount" => "2000"}]),
-          outputs_json: Jason.encode!([%{"token" => "0x5555", "recipient" => "0x6666", "amount" => "1000", "chainId" => "1"}])
+          outputs_json:
+            Jason.encode!([%{"token" => "0x5555", "recipient" => "0x6666", "amount" => "1000", "chainId" => "1"}])
         }
       ]
 
@@ -123,7 +132,8 @@ defmodule Explorer.Chain.Import.Runner.Signet.OrdersTest do
           transaction_hash: tx_hash,
           log_index: 0,
           inputs_json: Jason.encode!([%{"token" => "0x1234", "amount" => "1000"}]),
-          outputs_json: Jason.encode!([%{"token" => "0x5678", "recipient" => "0x9abc", "amount" => "500", "chainId" => "1"}]),
+          outputs_json:
+            Jason.encode!([%{"token" => "0x5678", "recipient" => "0x9abc", "amount" => "500", "chainId" => "1"}]),
           sweep_recipient: sweep_recipient,
           sweep_token: sweep_token,
           sweep_amount: Decimal.new("12345")
@@ -147,7 +157,10 @@ defmodule Explorer.Chain.Import.Runner.Signet.OrdersTest do
             transaction_hash: <<100 + i::256>>,
             log_index: 0,
             inputs_json: Jason.encode!([%{"token" => "0x#{i}", "amount" => "#{i * 1000}"}]),
-            outputs_json: Jason.encode!([%{"token" => "0x#{i}", "recipient" => "0x#{i}", "amount" => "#{i * 500}", "chainId" => "1"}])
+            outputs_json:
+              Jason.encode!([
+                %{"token" => "0x#{i}", "recipient" => "0x#{i}", "amount" => "#{i * 500}", "chainId" => "1"}
+              ])
           }
         end
 

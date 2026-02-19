@@ -1,12 +1,12 @@
 defmodule Indexer.Fetcher.Signet.EventParserTest do
   @moduledoc """
   Unit tests for Indexer.Fetcher.Signet.EventParser module.
-  
+
   Tests verify event parsing and Output struct field ordering.
-  
+
   Output struct field order (per @signet-sh/sdk):
   (address token, uint256 amount, address recipient, uint32 chainId)
-  
+
   Note: Orders and fills are indexed independently - no correlation between them.
   """
 
@@ -17,13 +17,15 @@ defmodule Indexer.Fetcher.Signet.EventParserTest do
   # Test addresses (20 bytes each)
   @test_token <<1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20>>
   @test_recipient <<21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40>>
-  @test_amount 1_000_000_000_000_000_000  # 1e18
-  @test_chain_id 1  # Mainnet
+  # 1e18
+  @test_amount 1_000_000_000_000_000_000
+  # Mainnet
+  @test_chain_id 1
 
   describe "parse_rollup_logs/1" do
     test "returns empty lists for empty logs" do
       {:ok, {orders, fills}} = EventParser.parse_rollup_logs([])
-      
+
       assert orders == []
       assert fills == []
     end
@@ -38,9 +40,9 @@ defmodule Indexer.Fetcher.Signet.EventParserTest do
           "logIndex" => "0x0"
         }
       ]
-      
+
       {:ok, {orders, fills}} = EventParser.parse_rollup_logs(logs)
-      
+
       assert orders == []
       assert fills == []
     end
@@ -49,7 +51,7 @@ defmodule Indexer.Fetcher.Signet.EventParserTest do
   describe "parse_host_filled_logs/1" do
     test "returns empty list for empty logs" do
       {:ok, fills} = EventParser.parse_host_filled_logs([])
-      
+
       assert fills == []
     end
 
@@ -63,9 +65,9 @@ defmodule Indexer.Fetcher.Signet.EventParserTest do
           "logIndex" => "0x0"
         }
       ]
-      
+
       {:ok, fills} = EventParser.parse_host_filled_logs(logs)
-      
+
       assert fills == []
     end
   end
@@ -83,18 +85,18 @@ defmodule Indexer.Fetcher.Signet.EventParserTest do
       #
       # This is the correct field order used in the EventParser tuple:
       # {token, amount, recipient, chain_id}
-      
+
       token = @test_token
       amount = @test_amount
       recipient = @test_recipient
       chain_id = @test_chain_id
-      
+
       # The tuple format used in EventParser
       output_tuple = {token, amount, recipient, chain_id}
-      
+
       # Extract fields in the expected SDK order
       {extracted_token, extracted_amount, extracted_recipient, extracted_chain_id} = output_tuple
-      
+
       assert extracted_token == token
       assert extracted_amount == amount
       assert extracted_recipient == recipient
@@ -106,11 +108,12 @@ defmodule Indexer.Fetcher.Signet.EventParserTest do
     test "handles hex-encoded block numbers" do
       # Test that block_number parsing works for hex strings
       log = %{
-        "blockNumber" => "0x10",  # 16 in decimal
+        # 16 in decimal
+        "blockNumber" => "0x10",
         "topics" => [],
         "data" => "0x"
       }
-      
+
       # The parser should correctly decode hex block numbers
       # This is implicitly tested through parse_rollup_logs/1
       {:ok, {[], []}} = EventParser.parse_rollup_logs([log])
@@ -122,7 +125,7 @@ defmodule Indexer.Fetcher.Signet.EventParserTest do
         :topics => [],
         :data => ""
       }
-      
+
       {:ok, {[], []}} = EventParser.parse_rollup_logs([log])
     end
   end
@@ -130,7 +133,7 @@ defmodule Indexer.Fetcher.Signet.EventParserTest do
   describe "event topic matching" do
     test "Order event topic matches Abi module" do
       order_topic = Abi.order_event_topic()
-      
+
       # Verify the topic format
       assert String.starts_with?(order_topic, "0x")
       assert String.length(order_topic) == 66
@@ -138,14 +141,14 @@ defmodule Indexer.Fetcher.Signet.EventParserTest do
 
     test "Filled event topic matches Abi module" do
       filled_topic = Abi.filled_event_topic()
-      
+
       assert String.starts_with?(filled_topic, "0x")
       assert String.length(filled_topic) == 66
     end
 
     test "Sweep event topic matches Abi module" do
       sweep_topic = Abi.sweep_event_topic()
-      
+
       assert String.starts_with?(sweep_topic, "0x")
       assert String.length(sweep_topic) == 66
     end
@@ -156,7 +159,7 @@ defmodule Indexer.Fetcher.Signet.EventParserTest do
       # Orders should have: deadline, block_number, transaction_hash, log_index, inputs_json, outputs_json
       # Primary key is (transaction_hash, log_index)
       expected_fields = ~w(deadline block_number transaction_hash log_index inputs_json outputs_json)a
-      
+
       # Verify the expected_fields list is what we're looking for
       assert :deadline in expected_fields
       assert :block_number in expected_fields
@@ -170,7 +173,7 @@ defmodule Indexer.Fetcher.Signet.EventParserTest do
       # Fills should have: block_number, transaction_hash, log_index, outputs_json
       # Primary key is (chain_type, transaction_hash, log_index) - chain_type added at import
       expected_fields = ~w(block_number transaction_hash log_index outputs_json)a
-      
+
       assert :block_number in expected_fields
       assert :transaction_hash in expected_fields
       assert :log_index in expected_fields

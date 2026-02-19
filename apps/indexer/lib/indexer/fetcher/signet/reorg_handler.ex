@@ -11,7 +11,7 @@ defmodule Indexer.Fetcher.Signet.ReorgHandler do
 
   import Ecto.Query
 
-  alias Explorer.Chain.Signet.{Order, Fill}
+  alias Explorer.Chain.Signet.{Fill, Order}
   alias Explorer.Repo
 
   @doc """

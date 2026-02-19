@@ -18,7 +18,8 @@ defmodule Explorer.Chain.Import.Runner.Signet.FillsTest do
           block_number: 100,
           transaction_hash: tx_hash,
           log_index: 0,
-          outputs_json: Jason.encode!([%{"token" => "0x5678", "recipient" => "0x9abc", "amount" => "500", "chainId" => "1"}])
+          outputs_json:
+            Jason.encode!([%{"token" => "0x5678", "recipient" => "0x9abc", "amount" => "500", "chainId" => "1"}])
         }
       ]
 
@@ -43,7 +44,8 @@ defmodule Explorer.Chain.Import.Runner.Signet.FillsTest do
           block_number: 200,
           transaction_hash: tx_hash,
           log_index: 1,
-          outputs_json: Jason.encode!([%{"token" => "0xaaaa", "recipient" => "0xbbbb", "amount" => "1000", "chainId" => "1"}])
+          outputs_json:
+            Jason.encode!([%{"token" => "0xaaaa", "recipient" => "0xbbbb", "amount" => "1000", "chainId" => "1"}])
         }
       ]
 
@@ -65,7 +67,8 @@ defmodule Explorer.Chain.Import.Runner.Signet.FillsTest do
           block_number: 100,
           transaction_hash: tx_hash,
           log_index: 0,
-          outputs_json: Jason.encode!([%{"token" => "0x1111", "recipient" => "0x2222", "amount" => "500", "chainId" => "1"}])
+          outputs_json:
+            Jason.encode!([%{"token" => "0x1111", "recipient" => "0x2222", "amount" => "500", "chainId" => "1"}])
         }
       ]
 
@@ -74,8 +77,10 @@ defmodule Explorer.Chain.Import.Runner.Signet.FillsTest do
           chain_type: :host,
           block_number: 200,
           transaction_hash: tx_hash,
-          log_index: 0,  # Same log_index but different chain_type
-          outputs_json: Jason.encode!([%{"token" => "0x1111", "recipient" => "0x2222", "amount" => "500", "chainId" => "1"}])
+          # Same log_index but different chain_type
+          log_index: 0,
+          outputs_json:
+            Jason.encode!([%{"token" => "0x1111", "recipient" => "0x2222", "amount" => "500", "chainId" => "1"}])
         }
       ]
 
@@ -93,16 +98,19 @@ defmodule Explorer.Chain.Import.Runner.Signet.FillsTest do
       tx_hash_struct = %Explorer.Chain.Hash.Full{byte_count: 32, bytes: tx_hash}
 
       # Verify both exist
-      rollup_fill = Repo.get_by(Fill,
-        chain_type: :rollup,
-        transaction_hash: tx_hash_struct,
-        log_index: 0
-      )
-      host_fill = Repo.get_by(Fill,
-        chain_type: :host,
-        transaction_hash: tx_hash_struct,
-        log_index: 0
-      )
+      rollup_fill =
+        Repo.get_by(Fill,
+          chain_type: :rollup,
+          transaction_hash: tx_hash_struct,
+          log_index: 0
+        )
+
+      host_fill =
+        Repo.get_by(Fill,
+          chain_type: :host,
+          transaction_hash: tx_hash_struct,
+          log_index: 0
+        )
 
       assert rollup_fill.block_number == 100
       assert host_fill.block_number == 200
@@ -117,17 +125,21 @@ defmodule Explorer.Chain.Import.Runner.Signet.FillsTest do
           block_number: 100,
           transaction_hash: tx_hash,
           log_index: 0,
-          outputs_json: Jason.encode!([%{"token" => "0x1234", "amount" => "500", "recipient" => "0x5678", "chainId" => "1"}])
+          outputs_json:
+            Jason.encode!([%{"token" => "0x1234", "amount" => "500", "recipient" => "0x5678", "chainId" => "1"}])
         }
       ]
 
       params2 = [
         %{
           chain_type: :rollup,
-          block_number: 101,  # Different block
+          # Different block
+          block_number: 101,
           transaction_hash: tx_hash,
-          log_index: 0,       # Same log_index + chain_type
-          outputs_json: Jason.encode!([%{"token" => "0x1234", "amount" => "1000", "recipient" => "0x5678", "chainId" => "1"}])
+          # Same log_index + chain_type
+          log_index: 0,
+          outputs_json:
+            Jason.encode!([%{"token" => "0x1234", "amount" => "1000", "recipient" => "0x5678", "chainId" => "1"}])
         }
       ]
 
@@ -143,7 +155,8 @@ defmodule Explorer.Chain.Import.Runner.Signet.FillsTest do
       assert Repo.aggregate(Fill, :count) == 1
 
       fill = Repo.one!(Fill)
-      assert fill.block_number == 101  # Updated
+      # Updated
+      assert fill.block_number == 101
     end
 
     test "different log_index creates separate fills" do
@@ -155,14 +168,17 @@ defmodule Explorer.Chain.Import.Runner.Signet.FillsTest do
           block_number: 100,
           transaction_hash: tx_hash,
           log_index: 0,
-          outputs_json: Jason.encode!([%{"token" => "0x1111", "amount" => "500", "recipient" => "0x2222", "chainId" => "1"}])
+          outputs_json:
+            Jason.encode!([%{"token" => "0x1111", "amount" => "500", "recipient" => "0x2222", "chainId" => "1"}])
         },
         %{
           chain_type: :rollup,
           block_number: 100,
           transaction_hash: tx_hash,
-          log_index: 1,  # Different log_index
-          outputs_json: Jason.encode!([%{"token" => "0x3333", "amount" => "1000", "recipient" => "0x4444", "chainId" => "1"}])
+          # Different log_index
+          log_index: 1,
+          outputs_json:
+            Jason.encode!([%{"token" => "0x3333", "amount" => "1000", "recipient" => "0x4444", "chainId" => "1"}])
         }
       ]
 
@@ -183,7 +199,10 @@ defmodule Explorer.Chain.Import.Runner.Signet.FillsTest do
             block_number: 100 + i,
             transaction_hash: <<100 + i::256>>,
             log_index: 0,
-            outputs_json: Jason.encode!([%{"token" => "0x#{i}", "recipient" => "0x#{i}", "amount" => "#{i * 500}", "chainId" => "1"}])
+            outputs_json:
+              Jason.encode!([
+                %{"token" => "0x#{i}", "recipient" => "0x#{i}", "amount" => "#{i * 500}", "chainId" => "1"}
+              ])
           }
         end
 
@@ -198,8 +217,10 @@ defmodule Explorer.Chain.Import.Runner.Signet.FillsTest do
       # Verify chain type distribution
       rollup_count = Enum.count(fills, &(&1.chain_type == :rollup))
       host_count = Enum.count(fills, &(&1.chain_type == :host))
-      assert rollup_count == 3  # i = 1, 3, 5
-      assert host_count == 2    # i = 2, 4
+      # i = 1, 3, 5
+      assert rollup_count == 3
+      # i = 2, 4
+      assert host_count == 2
     end
   end
 

@@ -45,48 +45,47 @@ defmodule Indexer.Fetcher.Signet.EventParser do
   """
   @spec parse_rollup_logs([map()]) :: {:ok, {[map()], [map()]}}
   def parse_rollup_logs(logs) when is_list(logs) do
-    order_topic = Abi.order_event_topic()
-    filled_topic = Abi.filled_event_topic()
-    sweep_topic = Abi.sweep_event_topic()
-
     {orders, fills, sweeps} =
-      Enum.reduce(logs, {[], [], []}, fn log, {orders_acc, fills_acc, sweeps_acc} ->
-        topic = get_topic(log, 0)
-
-        cond do
-          topic == order_topic ->
-            case parse_order_event(log) do
-              {:ok, order} -> {[order | orders_acc], fills_acc, sweeps_acc}
-              {:error, reason} ->
-                Logger.warning("Failed to parse Order event: #{inspect(reason)}")
-                {orders_acc, fills_acc, sweeps_acc}
-            end
-
-          topic == filled_topic ->
-            case parse_filled_event(log) do
-              {:ok, fill} -> {orders_acc, [fill | fills_acc], sweeps_acc}
-              {:error, reason} ->
-                Logger.warning("Failed to parse Filled event: #{inspect(reason)}")
-                {orders_acc, fills_acc, sweeps_acc}
-            end
-
-          topic == sweep_topic ->
-            case parse_sweep_event(log) do
-              {:ok, sweep} -> {orders_acc, fills_acc, [sweep | sweeps_acc]}
-              {:error, reason} ->
-                Logger.warning("Failed to parse Sweep event: #{inspect(reason)}")
-                {orders_acc, fills_acc, sweeps_acc}
-            end
-
-          true ->
-            {orders_acc, fills_acc, sweeps_acc}
-        end
+      Enum.reduce(logs, {[], [], []}, fn log, acc ->
+        classify_and_parse_log(log, acc)
       end)
 
     # Associate sweeps with their corresponding orders by transaction hash
     orders_with_sweeps = associate_sweeps_with_orders(orders, sweeps)
 
     {:ok, {Enum.reverse(orders_with_sweeps), Enum.reverse(fills)}}
+  end
+
+  defp classify_and_parse_log(log, {orders_acc, fills_acc, sweeps_acc}) do
+    topic = get_topic(log, 0)
+
+    cond do
+      topic == Abi.order_event_topic() ->
+        collect_parsed(parse_order_event(log), "Order", orders_acc, fills_acc, sweeps_acc, :order)
+
+      topic == Abi.filled_event_topic() ->
+        collect_parsed(parse_filled_event(log), "Filled", orders_acc, fills_acc, sweeps_acc, :fill)
+
+      topic == Abi.sweep_event_topic() ->
+        collect_parsed(parse_sweep_event(log), "Sweep", orders_acc, fills_acc, sweeps_acc, :sweep)
+
+      true ->
+        {orders_acc, fills_acc, sweeps_acc}
+    end
+  end
+
+  defp collect_parsed({:ok, item}, _label, orders, fills, sweeps, :order),
+    do: {[item | orders], fills, sweeps}
+
+  defp collect_parsed({:ok, item}, _label, orders, fills, sweeps, :fill),
+    do: {orders, [item | fills], sweeps}
+
+  defp collect_parsed({:ok, item}, _label, orders, fills, sweeps, :sweep),
+    do: {orders, fills, [item | sweeps]}
+
+  defp collect_parsed({:error, reason}, label, orders, fills, sweeps, _slot) do
+    Logger.warning("Failed to parse #{label} event: #{inspect(reason)}")
+    {orders, fills, sweeps}
   end
 
   @doc """
@@ -103,7 +102,9 @@ defmodule Indexer.Fetcher.Signet.EventParser do
       |> Enum.filter(fn log -> get_topic(log, 0) == filled_topic end)
       |> Enum.map(&parse_filled_event/1)
       |> Enum.filter(fn
-        {:ok, _} -> true
+        {:ok, _} ->
+          true
+
         {:error, reason} ->
           Logger.warning("Failed to parse host Filled event: #{inspect(reason)}")
           false
@@ -178,27 +179,23 @@ defmodule Indexer.Fetcher.Signet.EventParser do
   # Input = (address token, uint256 amount)
   # Output = (address token, uint256 amount, address recipient, uint32 chainId)
   defp decode_order_data(data) when is_binary(data) do
-    try do
-      # ABI decode: uint256, dynamic array offset, dynamic array offset
-      <<deadline::unsigned-big-integer-size(256),
-        inputs_offset::unsigned-big-integer-size(256),
-        outputs_offset::unsigned-big-integer-size(256),
-        rest::binary>> = data
+    # ABI decode: uint256, dynamic array offset, dynamic array offset
+    <<deadline::unsigned-big-integer-size(256), inputs_offset::unsigned-big-integer-size(256),
+      outputs_offset::unsigned-big-integer-size(256), rest::binary>> = data
 
-      # Parse inputs array - offset is from start of data (after first 32 bytes)
-      inputs_data = binary_part(rest, inputs_offset - 96, byte_size(rest) - inputs_offset + 96)
-      inputs = decode_input_array(inputs_data)
+    # Parse inputs array - offset is from start of data (after first 32 bytes)
+    inputs_data = binary_part(rest, inputs_offset - 96, byte_size(rest) - inputs_offset + 96)
+    inputs = decode_input_array(inputs_data)
 
-      # Parse outputs array
-      outputs_data = binary_part(rest, outputs_offset - 96, byte_size(rest) - outputs_offset + 96)
-      outputs = decode_output_array(outputs_data)
+    # Parse outputs array
+    outputs_data = binary_part(rest, outputs_offset - 96, byte_size(rest) - outputs_offset + 96)
+    outputs = decode_output_array(outputs_data)
 
-      {:ok, {deadline, inputs, outputs}}
-    rescue
-      e ->
-        Logger.error("Error decoding Order data: #{inspect(e)}")
-        {:error, :decode_failed}
-    end
+    {:ok, {deadline, inputs, outputs}}
+  rescue
+    e ->
+      Logger.error("Error decoding Order data: #{inspect(e)}")
+      {:error, :decode_failed}
   end
 
   defp decode_order_data(_), do: {:error, :invalid_data}
@@ -206,15 +203,13 @@ defmodule Indexer.Fetcher.Signet.EventParser do
   # Decode Filled event data
   # Filled(Output[] outputs)
   defp decode_filled_data(data) when is_binary(data) do
-    try do
-      <<_offset::unsigned-big-integer-size(256), rest::binary>> = data
-      outputs = decode_output_array(rest)
-      {:ok, outputs}
-    rescue
-      e ->
-        Logger.error("Error decoding Filled data: #{inspect(e)}")
-        {:error, :decode_failed}
-    end
+    <<_offset::unsigned-big-integer-size(256), rest::binary>> = data
+    outputs = decode_output_array(rest)
+    {:ok, outputs}
+  rescue
+    e ->
+      Logger.error("Error decoding Filled data: #{inspect(e)}")
+      {:error, :decode_failed}
   end
 
   defp decode_filled_data(_), do: {:error, :invalid_data}
@@ -222,14 +217,12 @@ defmodule Indexer.Fetcher.Signet.EventParser do
   # Decode Sweep event data
   # Only amount is in data (recipient and token are indexed)
   defp decode_sweep_data(data) when is_binary(data) do
-    try do
-      <<amount::unsigned-big-integer-size(256)>> = data
-      {:ok, amount}
-    rescue
-      e ->
-        Logger.error("Error decoding Sweep data: #{inspect(e)}")
-        {:error, :decode_failed}
-    end
+    <<amount::unsigned-big-integer-size(256)>> = data
+    {:ok, amount}
+  rescue
+    e ->
+      Logger.error("Error decoding Sweep data: #{inspect(e)}")
+      {:error, :decode_failed}
   end
 
   defp decode_sweep_data(_), do: {:error, :invalid_data}
@@ -242,10 +235,11 @@ defmodule Indexer.Fetcher.Signet.EventParser do
 
   defp decode_inputs(_data, 0, acc), do: Enum.reverse(acc)
 
-  defp decode_inputs(<<_padding::binary-size(12),
-                       token::binary-size(20),
-                       amount::unsigned-big-integer-size(256),
-                       rest::binary>>, count, acc) do
+  defp decode_inputs(
+         <<_padding::binary-size(12), token::binary-size(20), amount::unsigned-big-integer-size(256), rest::binary>>,
+         count,
+         acc
+       ) do
     input = {token, amount}
     decode_inputs(rest, count - 1, [input | acc])
   end
@@ -258,14 +252,13 @@ defmodule Indexer.Fetcher.Signet.EventParser do
 
   defp decode_outputs(_data, 0, acc), do: Enum.reverse(acc)
 
-  defp decode_outputs(<<_padding1::binary-size(12),
-                        token::binary-size(20),
-                        amount::unsigned-big-integer-size(256),
-                        _padding2::binary-size(12),
-                        recipient::binary-size(20),
-                        _padding3::binary-size(28),
-                        chain_id::unsigned-big-integer-size(32),
-                        rest::binary>>, count, acc) do
+  defp decode_outputs(
+         <<_padding1::binary-size(12), token::binary-size(20), amount::unsigned-big-integer-size(256),
+           _padding2::binary-size(12), recipient::binary-size(20), _padding3::binary-size(28),
+           chain_id::unsigned-big-integer-size(32), rest::binary>>,
+         count,
+         acc
+       ) do
     # Output struct order: token, amount, recipient, chainId
     output = {token, amount, recipient, chain_id}
     decode_outputs(rest, count - 1, [output | acc])

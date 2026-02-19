@@ -1806,7 +1806,7 @@ defmodule Explorer.Factory do
     %Order{
       transaction_hash: transaction_hash(),
       log_index: Enum.random(0..100),
-      deadline: DateTime.to_unix(DateTime.utc_now()) + 3600,
+      deadline: DateTime.utc_now() |> DateTime.to_unix() |> Kernel.+(3600),
       block_number: block_number(),
       inputs_json:
         Jason.encode!([

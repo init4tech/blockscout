@@ -5,7 +5,7 @@ defmodule Indexer.Fetcher.Signet.Utils.Db do
 
   import Ecto.Query
 
-  alias Explorer.Chain.Signet.{Order, Fill}
+  alias Explorer.Chain.Signet.{Fill, Order}
   alias Explorer.Repo
 
   @doc """
@@ -69,9 +69,10 @@ defmodule Indexer.Fetcher.Signet.Utils.Db do
   def get_fill(chain_type, transaction_hash, log_index) do
     Repo.one(
       from(f in Fill,
-        where: f.chain_type == ^chain_type and
-               f.transaction_hash == ^transaction_hash and
-               f.log_index == ^log_index
+        where:
+          f.chain_type == ^chain_type and
+            f.transaction_hash == ^transaction_hash and
+            f.log_index == ^log_index
       )
     )
   end
@@ -105,7 +106,11 @@ defmodule Indexer.Fetcher.Signet.Utils.Db do
   @doc """
   Count orders and fills for metrics.
   """
-  @spec get_order_fill_counts() :: %{orders: non_neg_integer(), rollup_fills: non_neg_integer(), host_fills: non_neg_integer()}
+  @spec get_order_fill_counts() :: %{
+          orders: non_neg_integer(),
+          rollup_fills: non_neg_integer(),
+          host_fills: non_neg_integer()
+        }
   def get_order_fill_counts do
     orders_count = Repo.one(from(o in Order, select: count(o.transaction_hash)))
 

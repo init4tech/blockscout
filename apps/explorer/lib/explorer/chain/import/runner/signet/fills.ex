@@ -8,8 +8,8 @@ defmodule Explorer.Chain.Import.Runner.Signet.Fills do
   import Ecto.Query, only: [from: 2]
 
   alias Ecto.{Changeset, Multi, Repo}
-  alias Explorer.Chain.Signet.Fill
   alias Explorer.Chain.Import
+  alias Explorer.Chain.Signet.Fill
   alias Explorer.Prometheus.Instrumenter
 
   @behaviour Import.Runner

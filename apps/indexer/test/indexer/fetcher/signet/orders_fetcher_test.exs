@@ -36,10 +36,11 @@ defmodule Indexer.Fetcher.Signet.OrdersFetcherTest do
         recheck_interval: 1000
       )
 
-      child_spec = OrdersFetcher.child_spec([
-        [json_rpc_named_arguments: json_rpc_named_arguments],
-        [name: OrdersFetcher]
-      ])
+      child_spec =
+        OrdersFetcher.child_spec([
+          [json_rpc_named_arguments: json_rpc_named_arguments],
+          [name: OrdersFetcher]
+        ])
 
       assert child_spec.id == OrdersFetcher
       assert child_spec.restart == :transient
@@ -56,7 +57,8 @@ defmodule Indexer.Fetcher.Signet.OrdersFetcherTest do
         transaction_hash: tx_hash,
         log_index: 0,
         inputs_json: Jason.encode!([%{"token" => "0x1234", "amount" => "1000"}]),
-        outputs_json: Jason.encode!([%{"token" => "0x5678", "recipient" => "0x9abc", "amount" => "500", "chainId" => "1"}])
+        outputs_json:
+          Jason.encode!([%{"token" => "0x5678", "recipient" => "0x9abc", "amount" => "500", "chainId" => "1"}])
       }
 
       assert {:ok, %{insert_signet_orders: [order]}} =
@@ -77,7 +79,8 @@ defmodule Indexer.Fetcher.Signet.OrdersFetcherTest do
         block_number: 150,
         transaction_hash: tx_hash,
         log_index: 1,
-        outputs_json: Jason.encode!([%{"token" => "0xaaaa", "recipient" => "0xbbbb", "amount" => "1000", "chainId" => "1"}])
+        outputs_json:
+          Jason.encode!([%{"token" => "0xaaaa", "recipient" => "0xbbbb", "amount" => "1000", "chainId" => "1"}])
       }
 
       assert {:ok, %{insert_signet_fills: [fill]}} =
@@ -97,7 +100,8 @@ defmodule Indexer.Fetcher.Signet.OrdersFetcherTest do
         transaction_hash: <<10::256>>,
         log_index: 0,
         inputs_json: Jason.encode!([%{"token" => "0x1111", "amount" => "1000"}]),
-        outputs_json: Jason.encode!([%{"token" => "0x2222", "recipient" => "0x3333", "amount" => "500", "chainId" => "1"}])
+        outputs_json:
+          Jason.encode!([%{"token" => "0x2222", "recipient" => "0x3333", "amount" => "500", "chainId" => "1"}])
       }
 
       fill_params = %{
@@ -105,7 +109,8 @@ defmodule Indexer.Fetcher.Signet.OrdersFetcherTest do
         block_number: 200,
         transaction_hash: <<20::256>>,
         log_index: 0,
-        outputs_json: Jason.encode!([%{"token" => "0x2222", "recipient" => "0x3333", "amount" => "500", "chainId" => "1"}])
+        outputs_json:
+          Jason.encode!([%{"token" => "0x2222", "recipient" => "0x3333", "amount" => "500", "chainId" => "1"}])
       }
 
       assert {:ok, result} =
@@ -129,7 +134,8 @@ defmodule Indexer.Fetcher.Signet.OrdersFetcherTest do
 
       insert_test_fill(:rollup, <<11::256>>, 150)
       insert_test_fill(:rollup, <<12::256>>, 250)
-      insert_test_fill(:host, <<13::256>>, 250)  # Host fill should survive rollup reorg
+      # Host fill should survive rollup reorg
+      insert_test_fill(:host, <<13::256>>, 250)
 
       assert Repo.aggregate(Order, :count) == 3
       assert Repo.aggregate(Fill, :count) == 3
@@ -172,7 +178,8 @@ defmodule Indexer.Fetcher.Signet.OrdersFetcherTest do
       host_fills = Enum.filter(fills, &(&1.chain_type == :host))
 
       assert length(rollup_fills) == 1
-      assert length(host_fills) == 1  # Only host fill at block 200 remains
+      # Only host fill at block 200 remains
+      assert length(host_fills) == 1
       assert hd(host_fills).block_number == 200
     end
 
@@ -265,9 +272,9 @@ defmodule Indexer.Fetcher.Signet.OrdersFetcherTest do
     end
 
     test "factory orders can be customized" do
-      order = insert(:signet_order, deadline: 9999999999, block_number: 42)
+      order = insert(:signet_order, deadline: 9_999_999_999, block_number: 42)
 
-      assert order.deadline == 9999999999
+      assert order.deadline == 9_999_999_999
       assert order.block_number == 42
     end
 
