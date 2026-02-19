@@ -54,7 +54,7 @@ defmodule Indexer.Fetcher.Signet.OrdersFetcher do
   alias Explorer.Chain
   alias Explorer.Chain.Signet.{Fill, Order}
   alias Indexer.BufferedTask
-  alias Indexer.Fetcher.Signet.{Abi, EventParser, ReorgHandler}
+  alias Indexer.Fetcher.Signet.{Abi, EventParser}
   alias Indexer.Helper, as: IndexerHelper
 
   @behaviour BufferedTask
@@ -454,14 +454,4 @@ defmodule Indexer.Fetcher.Signet.OrdersFetcher do
     :ok
   end
 
-  @doc """
-  Handle chain reorganization by removing events from invalidated blocks.
-
-  Called when a reorg is detected to clean up data from blocks that are
-  no longer in the canonical chain.
-  """
-  @spec handle_reorg(non_neg_integer(), :rollup | :host) :: :ok
-  def handle_reorg(from_block, chain_type) do
-    ReorgHandler.handle_reorg(from_block, chain_type)
-  end
 end
