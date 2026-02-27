@@ -70,23 +70,21 @@ defmodule Indexer.Fetcher.Signet.EventParser do
     fills =
       logs
       |> Enum.map(&normalize_log/1)
-      |> Enum.reduce([], fn log, acc ->
-        if Enum.at(log.topics, 0) == filled_topic do
-          case parse_filled_event(log) do
-            {:ok, fill} ->
-              [fill | acc]
-
-            {:error, reason} ->
-              Logger.warning("Failed to parse host Filled event: #{inspect(reason)}")
-              acc
-          end
-        else
-          acc
-        end
-      end)
-      |> Enum.reverse()
+      |> Enum.filter(&(Enum.at(&1.topics, 0) == filled_topic))
+      |> Enum.flat_map(&parse_host_fill_log/1)
 
     {:ok, fills}
+  end
+
+  defp parse_host_fill_log(log) do
+    case parse_filled_event(log) do
+      {:ok, fill} ->
+        [fill]
+
+      {:error, reason} ->
+        Logger.warning("Failed to parse host Filled event: #{inspect(reason)}")
+        []
+    end
   end
 
   # Normalize log keys from JSON-RPC string keys or Elixir atom keys into a
