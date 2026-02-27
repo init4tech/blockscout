@@ -172,10 +172,12 @@ defmodule Indexer.Fetcher.Signet.EventParser do
   defp parse_sweep_event(log) do
     data = decode_hex_data(log.data)
 
-    with {:ok, amount} <- decode_sweep_data(data) do
+    with {:ok, amount} <- decode_sweep_data(data),
+         {:ok, log_index} <- parse_log_index(log) do
       {:ok,
        %{
          transaction_hash: format_transaction_hash(log.transaction_hash),
+         log_index: log_index,
          recipient: decode_indexed_address(Enum.at(log.topics, 1)),
          token: decode_indexed_address(Enum.at(log.topics, 2)),
          amount: amount
@@ -189,19 +191,24 @@ defmodule Indexer.Fetcher.Signet.EventParser do
     <<deadline::unsigned-big-integer-size(256), inputs_offset::unsigned-big-integer-size(256),
       outputs_offset::unsigned-big-integer-size(256), rest::binary>> = data
 
+    rest_size = byte_size(rest)
+
     # ABI offsets are from the start of the data payload; subtract the header
     # size to get the position within `rest` (which starts after the header).
-    inputs_data =
-      binary_part(rest, inputs_offset - @order_header_size, byte_size(rest) - inputs_offset + @order_header_size)
+    inputs_rel = inputs_offset - @order_header_size
+    outputs_rel = outputs_offset - @order_header_size
 
-    inputs = decode_input_array(inputs_data)
+    if inputs_rel < 0 or inputs_rel > rest_size or outputs_rel < 0 or outputs_rel > rest_size do
+      {:error, :invalid_abi_offsets}
+    else
+      inputs_data = binary_part(rest, inputs_rel, rest_size - inputs_rel)
+      inputs = decode_input_array(inputs_data)
 
-    outputs_data =
-      binary_part(rest, outputs_offset - @order_header_size, byte_size(rest) - outputs_offset + @order_header_size)
+      outputs_data = binary_part(rest, outputs_rel, rest_size - outputs_rel)
+      outputs = decode_output_array(outputs_data)
 
-    outputs = decode_output_array(outputs_data)
-
-    {:ok, {deadline, inputs, outputs}}
+      {:ok, {deadline, inputs, outputs}}
+    end
   rescue
     e ->
       Logger.error("Error decoding Order data: #{inspect(e)}")
@@ -267,10 +274,10 @@ defmodule Indexer.Fetcher.Signet.EventParser do
         [sweep] ->
           attach_sweep(order, sweep)
 
-        [sweep | rest] ->
-          Logger.warning("Multiple sweeps (#{length(rest) + 1}) for tx #{order.transaction_hash}, using first")
-
-          attach_sweep(order, sweep)
+        [_ | _] = tx_sweeps ->
+          # Pick the sweep with the closest log_index to the order
+          nearest = Enum.min_by(tx_sweeps, &abs(&1.log_index - order.log_index))
+          attach_sweep(order, nearest)
 
         _ ->
           order

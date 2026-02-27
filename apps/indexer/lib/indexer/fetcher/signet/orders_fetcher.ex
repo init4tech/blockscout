@@ -306,6 +306,8 @@ defmodule Indexer.Fetcher.Signet.OrdersFetcher do
 
       updated_task_data = put_in(state.task_data.check_new_rollup.start_block, end_block + 1)
       {:ok, %{state | task_data: updated_task_data}}
+    else
+      {:error, reason} -> {:error, reason}
     end
   end
 
@@ -329,6 +331,8 @@ defmodule Indexer.Fetcher.Signet.OrdersFetcher do
 
       updated_task_data = put_in(state.task_data.check_new_host.start_block, end_block + 1)
       {:ok, %{state | task_data: updated_task_data}}
+    else
+      {:error, reason} -> {:error, reason}
     end
   end
 
@@ -356,6 +360,8 @@ defmodule Indexer.Fetcher.Signet.OrdersFetcher do
         updated_task_data = put_in(state.task_data.check_historical.end_block, start_block - 1)
         status = if start_block <= 0, do: :done, else: :continue
         {:ok, %{state | task_data: updated_task_data}, status}
+      else
+        {:error, reason} -> {:error, reason}
       end
     end
   end
@@ -392,16 +398,11 @@ defmodule Indexer.Fetcher.Signet.OrdersFetcher do
     }
 
     case EthereumJSONRPC.json_rpc(request, json_rpc_named_arguments) do
-      {:ok, hex_block} when is_binary(hex_block) ->
-        hex = String.trim_leading(hex_block, "0x")
-
-        case Integer.parse(hex, 16) do
-          {block, ""} -> {:ok, block}
-          _ -> {:error, {:invalid_block_number, hex_block}}
+      {:ok, result} ->
+        case EthereumJSONRPC.quantity_to_integer(result) do
+          nil -> {:error, {:invalid_block_number, result}}
+          block -> {:ok, block}
         end
-
-      {:ok, unexpected} ->
-        {:error, {:unexpected_response, unexpected}}
 
       {:error, reason} ->
         {:error, reason}
@@ -413,11 +414,22 @@ defmodule Indexer.Fetcher.Signet.OrdersFetcher do
     # Falls back to default_start if no records exist
     case chain_type do
       :rollup ->
-        case Explorer.Repo.one(
-               from(o in Order,
-                 select: max(o.block_number)
-               )
-             ) do
+        order_max =
+          Explorer.Repo.one(
+            from(o in Order,
+              select: max(o.block_number)
+            )
+          )
+
+        fill_max =
+          Explorer.Repo.one(
+            from(f in Fill,
+              where: f.chain_type == :rollup,
+              select: max(f.block_number)
+            )
+          )
+
+        case max(order_max, fill_max) do
           nil -> default_start
           block -> block + 1
         end
