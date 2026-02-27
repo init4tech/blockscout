@@ -3,7 +3,7 @@ defmodule BlockScoutWeb.GraphQL.Schema do
 
   use Absinthe.Schema
   use Absinthe.Relay.Schema, :modern
-  use Utils.CompileTimeEnvHelper, chain_identity: [:explorer, :chain_identity]
+  use Utils.CompileTimeEnvHelper, chain_identity: [:explorer, :chain_identity], chain_type: [:explorer, :chain_type]
 
   alias Absinthe.Middleware.Dataloader, as: AbsintheDataloaderMiddleware
   alias Absinthe.Plugin, as: AbsinthePlugin
@@ -23,10 +23,19 @@ defmodule BlockScoutWeb.GraphQL.Schema do
   alias Explorer.Chain.TokenTransfer, as: ExplorerChainTokenTransfer
   alias Explorer.Chain.Transaction, as: ExplorerChainTransaction
 
+  if @chain_type == :signet do
+    alias Explorer.Chain.Signet.Order, as: ExplorerChainSignetOrder
+    alias Explorer.Chain.Signet.Fill, as: ExplorerChainSignetFill
+  end
+
   import_types(BlockScoutWeb.GraphQL.Schema.Types)
 
   if @chain_identity == {:optimism, :celo} do
     import_types(BlockScoutWeb.GraphQL.Celo.Schema.Types)
+  end
+
+  if @chain_type == :signet do
+    import_types(BlockScoutWeb.GraphQL.Signet.Schema.Types)
   end
 
   node interface do
@@ -113,6 +122,13 @@ defmodule BlockScoutWeb.GraphQL.Schema do
       alias BlockScoutWeb.GraphQL.Celo.QueryFields
 
       QueryFields.generate()
+    end
+
+    if @chain_type == :signet do
+      require BlockScoutWeb.GraphQL.Signet.QueryFields
+      alias BlockScoutWeb.GraphQL.Signet.QueryFields, as: SignetQueryFields
+
+      SignetQueryFields.generate()
     end
   end
 
