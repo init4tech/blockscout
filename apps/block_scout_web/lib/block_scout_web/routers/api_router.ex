@@ -494,6 +494,17 @@ defmodule BlockScoutWeb.Routers.ApiRouter do
       end
     end
 
+    scope "/signet" do
+      if @chain_type == :signet do
+        get("/orders", V2.SignetController, :orders)
+        get("/orders/count", V2.SignetController, :orders_count)
+        get("/orders/:transaction_hash/:log_index", V2.SignetController, :order)
+        get("/fills", V2.SignetController, :fills)
+        get("/fills/count", V2.SignetController, :fills_count)
+        get("/fills/:chain_type/:transaction_hash/:log_index", V2.SignetController, :fill)
+      end
+    end
+
     scope "/advanced-filters" do
       get("/", V2.AdvancedFilterController, :list)
       get("/csv", V2.AdvancedFilterController, :list_csv)
