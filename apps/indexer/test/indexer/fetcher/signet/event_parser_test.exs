@@ -211,8 +211,8 @@ defmodule Indexer.Fetcher.Signet.EventParserTest do
         assert order.block_number == 42
         assert order.log_index == 3
         assert order.transaction_hash == "0x" <> String.duplicate("01", 32)
-        assert Jason.decode!(order.inputs_json) == v.expected_inputs
-        assert Jason.decode!(order.outputs_json) == v.expected_outputs
+        assert order.inputs_json == v.expected_inputs
+        assert order.outputs_json == v.expected_outputs
       end
     end
   end
@@ -275,7 +275,7 @@ defmodule Indexer.Fetcher.Signet.EventParserTest do
 
         assert fill.block_number == 99
         assert fill.log_index == 7
-        assert Jason.decode!(fill.outputs_json) == v.expected
+        assert fill.outputs_json == v.expected
       end
     end
   end
@@ -441,7 +441,7 @@ defmodule Indexer.Fetcher.Signet.EventParserTest do
 
       {:ok, {[order], []}} = EventParser.parse_rollup_logs([log])
 
-      [output] = Jason.decode!(order.outputs_json)
+      [output] = order.outputs_json
       assert output["chainId"] == max_u32
     end
 
@@ -453,7 +453,7 @@ defmodule Indexer.Fetcher.Signet.EventParserTest do
 
       {:ok, {[], [fill]}} = EventParser.parse_rollup_logs([log])
 
-      [output] = Jason.decode!(fill.outputs_json)
+      [output] = fill.outputs_json
       assert output["amount"] == Integer.to_string(max_u256)
     end
 
