@@ -11,9 +11,7 @@ defmodule Indexer.Fetcher.Signet.AbiTest do
   # Order(uint256,(address,uint256)[],(address,uint256,address,uint32)[])
   @expected_order_topic "0x" <>
                           Base.encode16(
-                            ExKeccak.hash_256(
-                              "Order(uint256,(address,uint256)[],(address,uint256,address,uint32)[])"
-                            ),
+                            ExKeccak.hash_256("Order(uint256,(address,uint256)[],(address,uint256,address,uint32)[])"),
                             case: :lower
                           )
 
