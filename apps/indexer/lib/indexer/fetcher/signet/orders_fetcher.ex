@@ -415,27 +415,29 @@ defmodule Indexer.Fetcher.Signet.OrdersFetcher do
     case chain_type do
       :rollup ->
         order_max =
-          Explorer.Repo.one(
+          Explorer.Repo.Signet.one(
             from(o in Order,
               select: max(o.block_number)
             )
           )
 
         fill_max =
-          Explorer.Repo.one(
+          Explorer.Repo.Signet.one(
             from(f in Fill,
               where: f.chain_type == :rollup,
               select: max(f.block_number)
             )
           )
 
-        case max(order_max, fill_max) do
-          nil -> default_start
-          block -> block + 1
+        case {order_max, fill_max} do
+          {nil, nil} -> default_start
+          {nil, fill} -> fill + 1
+          {order, nil} -> order + 1
+          {order, fill} -> max(order, fill) + 1
         end
 
       :host ->
-        case Explorer.Repo.one(
+        case Explorer.Repo.Signet.one(
                from(f in Fill,
                  where: f.chain_type == :host,
                  select: max(f.block_number)

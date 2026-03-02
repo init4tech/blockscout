@@ -48,7 +48,7 @@ defmodule Explorer.Chain.Signet.Fill do
     field(:transaction_hash, Hash.Full, primary_key: true)
     field(:log_index, :integer, primary_key: true)
     field(:block_number, :integer)
-    field(:outputs_json, :string)
+    field(:outputs_json, :map)
 
     timestamps()
   end

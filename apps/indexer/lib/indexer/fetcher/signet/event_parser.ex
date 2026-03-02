@@ -145,8 +145,8 @@ defmodule Indexer.Fetcher.Signet.EventParser do
          block_number: block_number,
          transaction_hash: format_transaction_hash(log.transaction_hash),
          log_index: log_index,
-         inputs_json: Jason.encode!(format_inputs(inputs)),
-         outputs_json: Jason.encode!(format_outputs(outputs))
+         inputs_json: format_inputs(inputs),
+         outputs_json: format_outputs(outputs)
        }}
     end
   end
@@ -163,7 +163,7 @@ defmodule Indexer.Fetcher.Signet.EventParser do
          block_number: block_number,
          transaction_hash: format_transaction_hash(log.transaction_hash),
          log_index: log_index,
-         outputs_json: Jason.encode!(format_outputs(outputs))
+         outputs_json: format_outputs(outputs)
        }}
     end
   end
@@ -211,7 +211,7 @@ defmodule Indexer.Fetcher.Signet.EventParser do
     end
   rescue
     e ->
-      Logger.error("Error decoding Order data: #{inspect(e)}")
+      Logger.error("Error decoding Order data: #{inspect(e)}\n#{Exception.format_stacktrace(__STACKTRACE__)}")
       {:error, :decode_failed}
   end
 
@@ -222,7 +222,7 @@ defmodule Indexer.Fetcher.Signet.EventParser do
     {:ok, decode_output_array(rest)}
   rescue
     e ->
-      Logger.error("Error decoding Filled data: #{inspect(e)}")
+      Logger.error("Error decoding Filled data: #{inspect(e)}\n#{Exception.format_stacktrace(__STACKTRACE__)}")
       {:error, :decode_failed}
   end
 
@@ -269,20 +269,45 @@ defmodule Indexer.Fetcher.Signet.EventParser do
   defp associate_sweeps_with_orders(orders, sweeps) do
     sweeps_by_tx = Enum.group_by(sweeps, & &1.transaction_hash)
 
-    Enum.map(orders, fn order ->
-      case Map.get(sweeps_by_tx, order.transaction_hash) do
-        [sweep] ->
-          attach_sweep(order, sweep)
+    # Group orders by transaction hash and match within each group
+    orders
+    |> Enum.group_by(& &1.transaction_hash)
+    |> Enum.flat_map(fn {tx_hash, tx_orders} ->
+      case Map.get(sweeps_by_tx, tx_hash) do
+        nil ->
+          tx_orders
 
-        [_ | _] = tx_sweeps ->
-          # Pick the sweep with the closest log_index to the order
-          nearest = Enum.min_by(tx_sweeps, &abs(&1.log_index - order.log_index))
-          attach_sweep(order, nearest)
-
-        _ ->
-          order
+        tx_sweeps ->
+          # 1:1 matching: sort both by log_index, greedily assign each order
+          # to the nearest unused sweep so no sweep is reused.
+          match_orders_to_sweeps(tx_orders, tx_sweeps)
       end
     end)
+  end
+
+  # Greedy 1:1 matching: for each order (sorted by log_index), pick the
+  # closest available sweep and remove it from the pool.
+  defp match_orders_to_sweeps(orders, sweeps) do
+    sorted_orders = Enum.sort_by(orders, & &1.log_index)
+    available_sweeps = Enum.sort_by(sweeps, & &1.log_index)
+
+    {matched_orders, _remaining} =
+      Enum.map_reduce(sorted_orders, available_sweeps, fn order, pool ->
+        case pool do
+          [] ->
+            {order, []}
+
+          _ ->
+            {nearest, idx} =
+              pool
+              |> Enum.with_index()
+              |> Enum.min_by(fn {sweep, _idx} -> abs(sweep.log_index - order.log_index) end)
+
+            {attach_sweep(order, nearest), List.delete_at(pool, idx)}
+        end
+      end)
+
+    matched_orders
   end
 
   defp attach_sweep(order, sweep) do
@@ -318,13 +343,17 @@ defmodule Indexer.Fetcher.Signet.EventParser do
 
   defp format_transaction_hash("0x" <> _ = hash), do: hash
   defp format_transaction_hash(bytes) when is_binary(bytes), do: "0x" <> Base.encode16(bytes, case: :lower)
-  defp format_transaction_hash(_), do: nil
+
+  defp format_transaction_hash(other),
+    do: raise(ArgumentError, "invalid transaction hash: #{inspect(other)}")
 
   # Field parsers
 
   defp decode_hex_data("0x" <> hex), do: Base.decode16!(hex, case: :mixed)
   defp decode_hex_data(raw) when is_binary(raw), do: raw
-  defp decode_hex_data(_), do: <<>>
+
+  defp decode_hex_data(other),
+    do: raise(ArgumentError, "invalid hex data: #{inspect(other)}")
 
   defp decode_indexed_address("0x" <> hex) do
     address_hex = String.slice(hex, -40, 40)

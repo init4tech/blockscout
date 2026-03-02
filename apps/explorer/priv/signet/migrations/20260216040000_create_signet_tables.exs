@@ -13,9 +13,9 @@ defmodule Explorer.Repo.Signet.Migrations.CreateSignetTables do
       add(:log_index, :integer, null: false, primary_key: true)
       add(:deadline, :bigint, null: false)
       add(:block_number, :bigint, null: false)
-      # JSON-encoded input/output arrays for flexibility
-      add(:inputs_json, :text, null: false)
-      add(:outputs_json, :text, null: false)
+      # JSONB columns for input/output arrays (queryable, validated)
+      add(:inputs_json, :map, null: false)
+      add(:outputs_json, :map, null: false)
       # Sweep event data (nullable - only present if Sweep was emitted)
       add(:sweep_recipient, :bytea, null: true)
       add(:sweep_token, :bytea, null: true)
@@ -34,7 +34,7 @@ defmodule Explorer.Repo.Signet.Migrations.CreateSignetTables do
       add(:transaction_hash, :bytea, null: false, primary_key: true)
       add(:log_index, :integer, null: false, primary_key: true)
       add(:block_number, :bigint, null: false)
-      add(:outputs_json, :text, null: false)
+      add(:outputs_json, :map, null: false)
       timestamps(null: false, type: :utc_datetime_usec)
     end
 

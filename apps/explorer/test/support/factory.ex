@@ -1805,22 +1805,20 @@ defmodule Explorer.Factory do
   def signet_order_factory do
     %Order{
       transaction_hash: transaction_hash(),
-      log_index: Enum.random(0..100),
+      log_index: sequence(:signet_log_index, & &1),
       deadline: DateTime.utc_now() |> DateTime.to_unix() |> Kernel.+(3600),
       block_number: block_number(),
-      inputs_json:
-        Jason.encode!([
-          %{"token" => "0x" <> String.duplicate("aa", 20), "amount" => "1000000000000000000"}
-        ]),
-      outputs_json:
-        Jason.encode!([
-          %{
-            "token" => "0x" <> String.duplicate("bb", 20),
-            "amount" => "1000000000000000000",
-            "recipient" => "0x" <> String.duplicate("cc", 20),
-            "chainId" => 1
-          }
-        ])
+      inputs_json: [
+        %{"token" => "0x" <> String.duplicate("aa", 20), "amount" => "1000000000000000000"}
+      ],
+      outputs_json: [
+        %{
+          "token" => "0x" <> String.duplicate("bb", 20),
+          "amount" => "1000000000000000000",
+          "recipient" => "0x" <> String.duplicate("cc", 20),
+          "chainId" => 1
+        }
+      ]
     }
   end
 
@@ -1828,17 +1826,16 @@ defmodule Explorer.Factory do
     %Fill{
       chain_type: :rollup,
       transaction_hash: transaction_hash(),
-      log_index: Enum.random(0..100),
+      log_index: sequence(:signet_log_index, & &1),
       block_number: block_number(),
-      outputs_json:
-        Jason.encode!([
-          %{
-            "token" => "0x" <> String.duplicate("bb", 20),
-            "amount" => "1000000000000000000",
-            "recipient" => "0x" <> String.duplicate("cc", 20),
-            "chainId" => 1
-          }
-        ])
+      outputs_json: [
+        %{
+          "token" => "0x" <> String.duplicate("bb", 20),
+          "amount" => "1000000000000000000",
+          "recipient" => "0x" <> String.duplicate("cc", 20),
+          "chainId" => 1
+        }
+      ]
     }
   end
 end
