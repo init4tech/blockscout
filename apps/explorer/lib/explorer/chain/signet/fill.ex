@@ -31,6 +31,8 @@ defmodule Explorer.Chain.Signet.Fill do
     * `log_index` - The index of the log within the transaction (primary key)
     * `block_number` - The block number where the fill was executed
     * `outputs_json` - List of filled outputs (token, amount, recipient, chainId) stored as JSONB.
+      Note: Uses `:map` Ecto type which accepts both maps and lists - PostgreSQL JSONB
+      stores both natively, and `insert_all` bypasses changeset validation.
       NOTE: In Filled events, the `chainId` field represents the ORIGIN chain
       (where the order was created), not the chain where the fill occurred.
   """

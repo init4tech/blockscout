@@ -30,8 +30,11 @@ defmodule Explorer.Chain.Signet.Order do
     * `log_index` - The index of the log within the transaction (primary key)
     * `deadline` - The deadline timestamp for the order
     * `block_number` - The block number where the order was created
-    * `inputs_json` - List of input tokens and amounts (stored as JSONB)
+    * `inputs_json` - List of input tokens and amounts (stored as JSONB).
+      Note: Uses `:map` Ecto type which accepts both maps and lists - PostgreSQL JSONB
+      stores both natively, and `insert_all` bypasses changeset validation.
     * `outputs_json` - List of output tokens, amounts, recipients, and chainIds (stored as JSONB).
+      Note: Uses `:map` Ecto type (same rationale as inputs_json).
       NOTE: In Order events, the `chainId` field represents the DESTINATION chain
       (where assets should be delivered), not the chain where the order was created.
     * `sweep_recipient` - Recipient address from Sweep event (if any)
