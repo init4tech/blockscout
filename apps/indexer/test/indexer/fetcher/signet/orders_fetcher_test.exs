@@ -61,8 +61,7 @@ if Application.compile_env(:explorer, :chain_type) == :signet do
           transaction_hash: tx_hash,
           log_index: 0,
           inputs_json: [%{"token" => "0x1234", "amount" => "1000"}],
-          outputs_json:
-            [%{"token" => "0x5678", "recipient" => "0x9abc", "amount" => "500", "chainId" => "1"}]
+          outputs_json: [%{"token" => "0x5678", "recipient" => "0x9abc", "amount" => "500", "chainId" => "1"}]
         }
 
         assert {:ok, %{insert_signet_orders: [order]}} =
@@ -83,8 +82,7 @@ if Application.compile_env(:explorer, :chain_type) == :signet do
           block_number: 150,
           transaction_hash: tx_hash,
           log_index: 1,
-          outputs_json:
-            [%{"token" => "0xaaaa", "recipient" => "0xbbbb", "amount" => "1000", "chainId" => "1"}]
+          outputs_json: [%{"token" => "0xaaaa", "recipient" => "0xbbbb", "amount" => "1000", "chainId" => "1"}]
         }
 
         assert {:ok, %{insert_signet_fills: [fill]}} =
@@ -104,8 +102,7 @@ if Application.compile_env(:explorer, :chain_type) == :signet do
           transaction_hash: cast_hash!(<<10::256>>),
           log_index: 0,
           inputs_json: [%{"token" => "0x1111", "amount" => "1000"}],
-          outputs_json:
-            [%{"token" => "0x2222", "recipient" => "0x3333", "amount" => "500", "chainId" => "1"}]
+          outputs_json: [%{"token" => "0x2222", "recipient" => "0x3333", "amount" => "500", "chainId" => "1"}]
         }
 
         fill_params = %{
@@ -113,8 +110,7 @@ if Application.compile_env(:explorer, :chain_type) == :signet do
           block_number: 200,
           transaction_hash: cast_hash!(<<20::256>>),
           log_index: 0,
-          outputs_json:
-            [%{"token" => "0x2222", "recipient" => "0x3333", "amount" => "500", "chainId" => "1"}]
+          outputs_json: [%{"token" => "0x2222", "recipient" => "0x3333", "amount" => "500", "chainId" => "1"}]
         }
 
         assert {:ok, result} =
