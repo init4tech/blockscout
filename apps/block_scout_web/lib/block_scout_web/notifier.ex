@@ -62,6 +62,9 @@ defmodule BlockScoutWeb.Notifier do
     :optimism ->
       @chain_type_specific_events ~w(new_optimism_batches new_optimism_deposits)a
 
+    :signet ->
+      @chain_type_specific_events ~w(new_signet_orders new_signet_fills signet_order_updates)a
+
     _ ->
       nil
   end
@@ -431,6 +434,11 @@ defmodule BlockScoutWeb.Notifier do
       def handle_event({:chain_event, topic, _, _} = event) when topic in @chain_type_specific_events,
         # credo:disable-for-next-line Credo.Check.Design.AliasUsage
         do: BlockScoutWeb.Notifiers.Optimism.handle_event(event)
+
+    :signet ->
+      def handle_event({:chain_event, topic, _, _} = event) when topic in @chain_type_specific_events,
+        # credo:disable-for-next-line Credo.Check.Design.AliasUsage
+        do: BlockScoutWeb.Notifiers.Signet.handle_event(event)
 
     _ ->
       nil
