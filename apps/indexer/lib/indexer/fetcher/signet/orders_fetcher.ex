@@ -53,6 +53,7 @@ defmodule Indexer.Fetcher.Signet.OrdersFetcher do
 
   alias Explorer.Chain
   alias Explorer.Chain.Signet.{Fill, Order}
+  alias Explorer.Repo.Signet, as: SignetRepo
   alias Indexer.BufferedTask
   alias Indexer.Fetcher.Signet.{Abi, EventParser}
   alias Indexer.Helper, as: IndexerHelper
@@ -415,14 +416,14 @@ defmodule Indexer.Fetcher.Signet.OrdersFetcher do
     case chain_type do
       :rollup ->
         order_max =
-          Explorer.Repo.Signet.one(
+          SignetRepo.one(
             from(o in Order,
               select: max(o.block_number)
             )
           )
 
         fill_max =
-          Explorer.Repo.Signet.one(
+          SignetRepo.one(
             from(f in Fill,
               where: f.chain_type == :rollup,
               select: max(f.block_number)
@@ -437,7 +438,7 @@ defmodule Indexer.Fetcher.Signet.OrdersFetcher do
         end
 
       :host ->
-        case Explorer.Repo.Signet.one(
+        case SignetRepo.one(
                from(f in Fill,
                  where: f.chain_type == :host,
                  select: max(f.block_number)

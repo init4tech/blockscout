@@ -166,7 +166,7 @@ if Application.compile_env(:explorer, :chain_type) == :signet do
               outputs_json:
                 [
                   %{"token" => "0x#{i}", "recipient" => "0x#{i}", "amount" => "#{i * 500}", "chainId" => "1"}
-                ])
+                ]
             }
           end
 
