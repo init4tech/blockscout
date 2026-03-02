@@ -51,12 +51,16 @@ defmodule Indexer.Fetcher.Signet.AbiTest do
       assert Abi.sweep_event_topic() == @expected_sweep_topic
     end
 
-    test "topic hashes are valid 66-char hex strings" do
-      for topic <- [Abi.order_event_topic(), Abi.filled_event_topic(), Abi.sweep_event_topic()] do
-        assert String.length(topic) == 66
-        assert String.starts_with?(topic, "0x")
-        assert Regex.match?(~r/^0x[0-9a-f]{64}$/, topic)
-      end
+    test "topic hashes match known-good hard-coded values" do
+      # These values were independently computed via keccak256 of the canonical signatures
+      assert Abi.order_event_topic() ==
+               "0x80c9b8738a5ff299b770efb55e4372a5fc655294aca7145b3c529c2d89732d62"
+
+      assert Abi.filled_event_topic() ==
+               "0x14b3027353aba71f468d178fdede9ac211a25ae484028823bce1e6700e58e624"
+
+      assert Abi.sweep_event_topic() ==
+               "0xed679328aebf74ede77ae09efcf36e90244f83643dadac1c2d9f0b21a46f6ab7"
     end
   end
 
