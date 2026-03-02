@@ -62,6 +62,7 @@ jobs:
               "rsk",
               "scroll",
               "shibarium",
+              "signet",
               "stability",
               "zetachain",
               "zilliqa",

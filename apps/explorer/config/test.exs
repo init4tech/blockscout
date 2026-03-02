@@ -84,7 +84,8 @@ for repo <- [
       Explorer.Repo.Suave,
       Explorer.Repo.Zilliqa,
       Explorer.Repo.ZkSync,
-      Explorer.Repo.Neon
+      Explorer.Repo.Neon,
+      Explorer.Repo.Signet
     ] do
   config :explorer, repo,
     database: database,
