@@ -75,6 +75,7 @@ defmodule BlockScoutWeb.API.V2.Signet.SignetView do
   # Private helper functions
 
   defp prepare_inputs(nil), do: []
+
   defp prepare_inputs(inputs) when is_list(inputs) do
     Enum.map(inputs, fn input ->
       %{
@@ -83,9 +84,11 @@ defmodule BlockScoutWeb.API.V2.Signet.SignetView do
       }
     end)
   end
+
   defp prepare_inputs(_), do: []
 
   defp prepare_outputs(nil), do: []
+
   defp prepare_outputs(outputs) when is_list(outputs) do
     Enum.map(outputs, fn output ->
       %{
@@ -96,9 +99,11 @@ defmodule BlockScoutWeb.API.V2.Signet.SignetView do
       }
     end)
   end
+
   defp prepare_outputs(_), do: []
 
   defp prepare_sweep(%Order{sweep_recipient: nil}), do: nil
+
   defp prepare_sweep(%Order{sweep_recipient: recipient, sweep_token: token, sweep_amount: amount}) do
     %{
       "recipient" => to_string(recipient),
@@ -115,6 +120,7 @@ defmodule BlockScoutWeb.API.V2.Signet.SignetView do
   # Compute outputs witness hash - this is a placeholder
   # In a real implementation, this would compute the actual witness hash
   defp compute_outputs_witness_hash(nil), do: nil
+
   defp compute_outputs_witness_hash(outputs) when is_list(outputs) do
     # For now, return a deterministic hash based on the outputs
     # A proper implementation would use the actual cryptographic hash
@@ -124,5 +130,6 @@ defmodule BlockScoutWeb.API.V2.Signet.SignetView do
     |> Base.encode16(case: :lower)
     |> then(fn hash -> "0x" <> hash end)
   end
+
   defp compute_outputs_witness_hash(_), do: nil
 end

@@ -1,7 +1,7 @@
 defmodule BlockScoutWeb.API.V2.Signet.SignetController do
   @moduledoc """
   Controller for Signet order and fill API endpoints.
-  
+
   Provides endpoints for querying Signet orders and fills by block number
   or transaction hash.
   """
@@ -23,7 +23,7 @@ defmodule BlockScoutWeb.API.V2.Signet.SignetController do
 
   @doc """
   GET /api/v2/signet/blocks/:block_number/orders
-  
+
   Returns all orders initiated in a specific block.
   """
   def block_orders(conn, %{"block_number" => block_number_string} = params) do
@@ -47,7 +47,7 @@ defmodule BlockScoutWeb.API.V2.Signet.SignetController do
 
   @doc """
   GET /api/v2/signet/blocks/:block_number/fills
-  
+
   Returns all fills executed in a specific block.
   """
   def block_fills(conn, %{"block_number" => block_number_string} = params) do
@@ -71,7 +71,7 @@ defmodule BlockScoutWeb.API.V2.Signet.SignetController do
 
   @doc """
   GET /api/v2/signet/blocks/:block_number/activity
-  
+
   Returns combined view of orders and fills for a specific block.
   """
   def block_activity(conn, %{"block_number" => block_number_string} = params) do
@@ -92,7 +92,7 @@ defmodule BlockScoutWeb.API.V2.Signet.SignetController do
 
   @doc """
   GET /api/v2/signet/transactions/:transaction_hash/orders
-  
+
   Returns orders initiated by a specific transaction.
   """
   def transaction_orders(conn, %{"transaction_hash" => tx_hash_string} = params) do
@@ -116,7 +116,7 @@ defmodule BlockScoutWeb.API.V2.Signet.SignetController do
 
   @doc """
   GET /api/v2/signet/transactions/:transaction_hash/fills
-  
+
   Returns fills executed by a specific transaction.
   """
   def transaction_fills(conn, %{"transaction_hash" => tx_hash_string} = params) do
@@ -140,7 +140,7 @@ defmodule BlockScoutWeb.API.V2.Signet.SignetController do
 
   @doc """
   GET /api/v2/signet/transactions/:transaction_hash/activity
-  
+
   Returns combined view of orders and fills for a specific transaction.
   """
   def transaction_activity(conn, %{"transaction_hash" => tx_hash_string} = params) do

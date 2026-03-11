@@ -93,9 +93,10 @@ defmodule Explorer.Chain.Signet do
     # A more complete implementation would query fills and match by outputs
     now = DateTime.utc_now() |> DateTime.to_unix()
 
-    cond do
-      order.deadline < now -> :expired
-      true -> :pending
+    if order.deadline < now do
+      :expired
+    else
+      :pending
     end
   end
 
