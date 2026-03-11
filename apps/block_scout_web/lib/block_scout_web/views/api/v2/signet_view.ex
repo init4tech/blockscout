@@ -95,7 +95,9 @@ defmodule BlockScoutWeb.API.V2.Signet.SignetView do
         "token" => Map.get(output, "token") || Map.get(output, :token),
         "amount" => to_string(Map.get(output, "amount") || Map.get(output, :amount)),
         "recipient" => Map.get(output, "recipient") || Map.get(output, :recipient),
-        "chain_id" => Map.get(output, "chainId") || Map.get(output, :chainId) || Map.get(output, "chain_id") || Map.get(output, :chain_id)
+        "chain_id" =>
+          Map.get(output, "chainId") || Map.get(output, :chainId) || Map.get(output, "chain_id") ||
+            Map.get(output, :chain_id)
       }
     end)
   end

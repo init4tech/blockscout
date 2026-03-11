@@ -22,7 +22,7 @@ defmodule Explorer.Chain.Signet do
 
     Order
     |> where([o], o.block_number == ^block_number)
-    |> order_by([o], [asc: o.log_index])
+    |> order_by([o], asc: o.log_index)
     |> Chain.page_signet_orders(paging_options)
     |> limit(^page_size)
     |> select_repo(api?).all()
@@ -40,7 +40,7 @@ defmodule Explorer.Chain.Signet do
 
     Fill
     |> where([f], f.block_number == ^block_number)
-    |> order_by([f], [asc: f.log_index])
+    |> order_by([f], asc: f.log_index)
     |> Chain.page_signet_fills(paging_options)
     |> limit(^page_size)
     |> select_repo(api?).all()
@@ -58,7 +58,7 @@ defmodule Explorer.Chain.Signet do
 
     Order
     |> where([o], o.transaction_hash == ^transaction_hash)
-    |> order_by([o], [asc: o.log_index])
+    |> order_by([o], asc: o.log_index)
     |> Chain.page_signet_orders(paging_options)
     |> limit(^page_size)
     |> select_repo(api?).all()
@@ -76,7 +76,7 @@ defmodule Explorer.Chain.Signet do
 
     Fill
     |> where([f], f.transaction_hash == ^transaction_hash)
-    |> order_by([f], [asc: f.log_index])
+    |> order_by([f], asc: f.log_index)
     |> Chain.page_signet_fills(paging_options)
     |> limit(^page_size)
     |> select_repo(api?).all()
