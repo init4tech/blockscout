@@ -34,12 +34,15 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Extract version from tag
+      - name: Extract versions
         id: version
         run: |
           VERSION=${GITHUB_REF_NAME#v}
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "short_sha=$(echo ${GITHUB_SHA} | cut -c1-8)" >> $GITHUB_OUTPUT
+          # Extract Elixir release version from rel/config.exs
+          RELEASE_VERSION=$(grep -oP 'set version: "\K[^"]+' rel/config.exs)
+          echo "release_version=$RELEASE_VERSION" >> $GITHUB_OUTPUT
 
       - name: Build and push by digest
         id: build
@@ -54,7 +57,7 @@ jobs:
           cache-to: type=gha,scope=amd64,mode=max
           build-args: |
             BLOCKSCOUT_VERSION=${{ github.ref_name }}+commit.${{ steps.version.outputs.short_sha }}
-            RELEASE_VERSION=${{ steps.version.outputs.version }}
+            RELEASE_VERSION=${{ steps.version.outputs.release_version }}
 
   build-arm64:
     name: Build arm64
@@ -76,12 +79,15 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Extract version from tag
+      - name: Extract versions
         id: version
         run: |
           VERSION=${GITHUB_REF_NAME#v}
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "short_sha=$(echo ${GITHUB_SHA} | cut -c1-8)" >> $GITHUB_OUTPUT
+          # Extract Elixir release version from rel/config.exs
+          RELEASE_VERSION=$(grep -oP 'set version: "\K[^"]+' rel/config.exs)
+          echo "release_version=$RELEASE_VERSION" >> $GITHUB_OUTPUT
 
       - name: Build and push by digest
         id: build
@@ -96,7 +102,7 @@ jobs:
           cache-to: type=gha,scope=arm64,mode=max
           build-args: |
             BLOCKSCOUT_VERSION=${{ github.ref_name }}+commit.${{ steps.version.outputs.short_sha }}
-            RELEASE_VERSION=${{ steps.version.outputs.version }}
+            RELEASE_VERSION=${{ steps.version.outputs.release_version }}
 
   merge:
     name: Create multi-arch manifest
