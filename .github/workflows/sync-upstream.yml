@@ -1,0 +1,67 @@
+name: Sync upstream master
+
+on:
+  schedule:
+    # Run daily at 6 AM UTC
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout signet-main
+        uses: actions/checkout@v4
+        with:
+          ref: signet-main
+          fetch-depth: 0
+
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Add upstream remote
+        run: git remote add upstream https://github.com/blockscout/blockscout.git
+
+      - name: Fetch upstream
+        run: git fetch upstream master
+
+      - name: Update master branch
+        run: |
+          git checkout master || git checkout -b master upstream/master
+          git reset --hard upstream/master
+          git push origin master --force
+
+      - name: Try to merge upstream into signet-main
+        id: merge
+        run: |
+          git checkout signet-main
+          if git merge upstream/master --no-edit; then
+            echo "merge_status=success" >> $GITHUB_OUTPUT
+            git push origin signet-main
+          else
+            echo "merge_status=conflict" >> $GITHUB_OUTPUT
+            git merge --abort
+          fi
+
+      - name: Create PR if conflict
+        if: steps.merge.outputs.merge_status == 'conflict'
+        run: |
+          BRANCH="upstream-sync-$(date +%Y%m%d)"
+          git checkout -b $BRANCH upstream/master
+          gh pr create \
+            --title "chore: sync upstream master (conflicts need resolution)" \
+            --body "Automated upstream sync. There were merge conflicts that need manual resolution.
+
+          This PR contains the latest changes from upstream blockscout/blockscout master branch.
+
+          Please resolve conflicts and merge into signet-main." \
+            --base signet-main \
+            --head $BRANCH
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
