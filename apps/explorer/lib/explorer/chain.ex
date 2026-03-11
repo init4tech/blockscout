@@ -2008,6 +2008,24 @@ defmodule Explorer.Chain do
     where(query, [block], block.number < ^block_number)
   end
 
+  @doc """
+  Paginates Signet orders by log_index.
+  """
+  def page_signet_orders(query, %PagingOptions{key: nil}), do: query
+
+  def page_signet_orders(query, %PagingOptions{key: {log_index}}) do
+    where(query, [o], o.log_index > ^log_index)
+  end
+
+  @doc """
+  Paginates Signet fills by log_index.
+  """
+  def page_signet_fills(query, %PagingOptions{key: nil}), do: query
+
+  def page_signet_fills(query, %PagingOptions{key: {log_index}}) do
+    where(query, [f], f.log_index > ^log_index)
+  end
+
   defp page_logs(query, %PagingOptions{key: nil}), do: query
 
   defp page_logs(query, %PagingOptions{key: {index}}) do

@@ -236,6 +236,20 @@ defmodule BlockScoutWeb.Routers.ApiRouter do
       end
     end
 
+    scope "/signet" do
+      scope "/blocks/:block_number" do
+        get("/orders", V2.Signet.SignetController, :block_orders)
+        get("/fills", V2.Signet.SignetController, :block_fills)
+        get("/activity", V2.Signet.SignetController, :block_activity)
+      end
+
+      scope "/transactions/:transaction_hash" do
+        get("/orders", V2.Signet.SignetController, :transaction_orders)
+        get("/fills", V2.Signet.SignetController, :transaction_fills)
+        get("/activity", V2.Signet.SignetController, :transaction_activity)
+      end
+    end
+
     scope "/addresses" do
       get("/", V2.AddressController, :addresses_list)
       get("/:address_hash_param", V2.AddressController, :address)
