@@ -116,19 +116,21 @@ defmodule Indexer.Fetcher.EmptyBlocksSanitizer do
   defp classify_blocks_from_result(result) do
     result
     |> Enum.reduce({[], []}, fn %{id: _id, result: block}, {non_empty_blocks, empty_blocks} ->
-      if Enum.empty?(block["transactions"]) do
-        {non_empty_blocks, [block_fields(block) | empty_blocks]}
+      transactions = Map.get(block, "transactions") || []
+
+      if Enum.empty?(transactions) do
+        {non_empty_blocks, [block_fields(block, transactions) | empty_blocks]}
       else
-        {[block_fields(block) | non_empty_blocks], empty_blocks}
+        {[block_fields(block, transactions) | non_empty_blocks], empty_blocks}
       end
     end)
   end
 
-  defp block_fields(block) do
+  defp block_fields(block, transactions) do
     %{
       number: quantity_to_integer(block["number"]),
       hash: block["hash"],
-      transactions_count: Enum.count(block["transactions"])
+      transactions_count: Enum.count(transactions)
     }
   end
 

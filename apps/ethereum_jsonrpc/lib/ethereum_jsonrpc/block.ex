@@ -537,6 +537,49 @@ defmodule EthereumJSONRPC.Block do
     }
   end
 
+  # Some chains (e.g. Signet) do not return `size` or `totalDifficulty` in block responses.
+  # This catch-all clause handles blocks missing those fields by using Map.get with defaults.
+  defp do_elixir_to_params(
+         %{
+           "difficulty" => difficulty,
+           "extraData" => extra_data,
+           "gasLimit" => gas_limit,
+           "gasUsed" => gas_used,
+           "hash" => hash,
+           "logsBloom" => logs_bloom,
+           "miner" => miner_hash,
+           "number" => number,
+           "parentHash" => parent_hash,
+           "receiptsRoot" => receipts_root,
+           "stateRoot" => state_root,
+           "timestamp" => timestamp,
+           "transactionsRoot" => transactions_root
+         } = elixir
+       ) do
+    %{
+      difficulty: difficulty,
+      extra_data: extra_data,
+      gas_limit: gas_limit,
+      gas_used: gas_used,
+      hash: hash,
+      logs_bloom: logs_bloom,
+      miner_hash: miner_hash,
+      mix_hash: Map.get(elixir, "mixHash", "0x0"),
+      nonce: Map.get(elixir, "nonce", 0),
+      number: number,
+      parent_hash: parent_hash,
+      receipts_root: receipts_root,
+      sha3_uncles: Map.get(elixir, "sha3Uncles", @sha3_uncles_empty_list),
+      size: Map.get(elixir, "size"),
+      state_root: state_root,
+      timestamp: timestamp,
+      total_difficulty: Map.get(elixir, "totalDifficulty"),
+      transactions_root: transactions_root,
+      uncles: Map.get(elixir, "uncles", []),
+      base_fee_per_gas: Map.get(elixir, "baseFeePerGas")
+    }
+  end
+
   @spec chain_type_fields(params, elixir) :: params
   case @chain_type do
     :rsk ->
