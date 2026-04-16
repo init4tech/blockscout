@@ -58,6 +58,57 @@ defmodule EthereumJSONRPC.BlockTest do
                |> Map.merge(chain_type_fields())
     end
 
+    test "handles blocks without size, totalDifficulty, or baseFeePerGas" do
+      result =
+        Block.elixir_to_params(%{
+          "difficulty" => 0,
+          "extraData" => "0x",
+          "gasLimit" => 30_000_000,
+          "gasUsed" => 0,
+          "hash" => "0x52ab82bcac8b4db67f92b8caf8381ac24fb09457791617592fd82364ed0b35b3",
+          "logsBloom" =>
+            "0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+          "miner" => "0xab30d97cc3ad91b5d3a9e7252acf411c9aeee9dc",
+          "mixHash" => "0xe7a8db8db2edc3823388dbe6f05f89d5187d540b3996ebe5f6be6d755c2a9bfe",
+          "nonce" => "0x0000000000000000",
+          "number" => 24_892_088,
+          "parentHash" => "0x7476e610c1dfef2065446e726b15e8c4d060c4e382aae27cb422fee01600d8db",
+          "receiptsRoot" => "0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421",
+          "sha3Uncles" => "0x1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347",
+          "stateRoot" => "0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421",
+          "timestamp" => Timex.parse!("2026-04-16T11:28:35Z", "{ISO:Extended:Z}"),
+          "transactions" => [],
+          "transactionsRoot" => "0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421",
+          "uncles" => []
+        })
+
+      assert result ==
+               %{
+                 difficulty: 0,
+                 extra_data: "0x",
+                 gas_limit: 30_000_000,
+                 gas_used: 0,
+                 hash: "0x52ab82bcac8b4db67f92b8caf8381ac24fb09457791617592fd82364ed0b35b3",
+                 logs_bloom:
+                   "0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+                 mix_hash: "0xe7a8db8db2edc3823388dbe6f05f89d5187d540b3996ebe5f6be6d755c2a9bfe",
+                 miner_hash: "0xab30d97cc3ad91b5d3a9e7252acf411c9aeee9dc",
+                 nonce: "0x0000000000000000",
+                 number: 24_892_088,
+                 parent_hash: "0x7476e610c1dfef2065446e726b15e8c4d060c4e382aae27cb422fee01600d8db",
+                 receipts_root: "0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421",
+                 sha3_uncles: "0x1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347",
+                 size: nil,
+                 state_root: "0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421",
+                 timestamp: Timex.parse!("2026-04-16T11:28:35Z", "{ISO:Extended:Z}"),
+                 total_difficulty: nil,
+                 transactions_root: "0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421",
+                 uncles: [],
+                 base_fee_per_gas: nil
+               }
+               |> Map.merge(chain_type_fields())
+    end
+
     case Application.compile_env(:explorer, :chain_type) do
       :rsk ->
         defp chain_type_fields,
