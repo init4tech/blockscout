@@ -114,13 +114,22 @@ defmodule Indexer.Fetcher.EmptyBlocksSanitizer do
   end
 
   defp classify_blocks_from_result(result) do
-    result
-    |> Enum.reduce({[], []}, fn %{id: _id, result: block}, {non_empty_blocks, empty_blocks} ->
-      if Enum.empty?(block["transactions"]) do
-        {non_empty_blocks, [block_fields(block) | empty_blocks]}
-      else
-        {[block_fields(block) | non_empty_blocks], empty_blocks}
-      end
+    Enum.reduce(result, {[], []}, fn
+      %{id: _id, result: nil}, acc ->
+        # A spec-compliant JSON-RPC server returns `result: null` for blocks it
+        # cannot find (e.g. pruned or reorged). Skip without crashing.
+        Logger.warning("Received nil block from RPC while sanitizing empty blocks; skipping",
+          fetcher: :empty_blocks_to_refetch
+        )
+
+        acc
+
+      %{id: _id, result: block}, {non_empty_blocks, empty_blocks} ->
+        if Enum.empty?(block["transactions"]) do
+          {non_empty_blocks, [block_fields(block) | empty_blocks]}
+        else
+          {[block_fields(block) | non_empty_blocks], empty_blocks}
+        end
     end)
   end
 

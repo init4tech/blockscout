@@ -140,6 +140,40 @@ defmodule Indexer.Fetcher.EmptyBlocksSanitizerTest do
     assert processed_block.refetch_needed == true, "invalid `refetch_needed` value set for processed block"
   end
 
+  test "skips blocks for which JSON-RPC returns nil result", %{json_rpc_named_arguments: json_rpc_named_arguments} do
+    # Setup
+    block_to_process = insert(:block, is_empty: nil)
+    populate_database_with_dummy_blocks()
+    assert Repo.get!(Block, block_to_process.hash).is_empty == nil, "precondition to check setup correctness"
+
+    encoded_expected_block_number = "0x" <> Integer.to_string(block_to_process.number, 16)
+
+    if json_rpc_named_arguments[:transport] == EthereumJSONRPC.Mox do
+      EthereumJSONRPC.Mox
+      |> stub(
+        :json_rpc,
+        fn [
+             %{
+               id: id,
+               method: "eth_getBlockByNumber",
+               params: [^encoded_expected_block_number, false]
+             }
+           ],
+           _options ->
+          {:ok, [%{id: id, result: nil}]}
+        end
+      )
+    end
+
+    EmptyBlocksSanitizer.Supervisor.Case.start_supervised!(json_rpc_named_arguments: json_rpc_named_arguments)
+
+    # Give the sanitizer a moment to process the nil response.
+    Process.sleep(500)
+
+    # The block should remain untouched (sanitizer skipped it without crashing).
+    assert Repo.get!(Block, block_to_process.hash).is_empty == nil
+  end
+
   test "only old enough blocks are sanitized", %{json_rpc_named_arguments: json_rpc_named_arguments} do
     # Setup
     block_to_process = insert(:block, is_empty: nil)
