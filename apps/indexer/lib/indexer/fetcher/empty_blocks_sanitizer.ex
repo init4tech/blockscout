@@ -99,6 +99,7 @@ defmodule Indexer.Fetcher.EmptyBlocksSanitizer do
           {non_empty_blocks, empty_blocks} = classify_blocks_from_result(result)
           process_non_empty_blocks(non_empty_blocks)
           process_empty_blocks(empty_blocks)
+          process_missing_blocks(unprocessed_empty_blocks_list, non_empty_blocks, empty_blocks)
 
           Logger.info("Batch of empty blocks is sanitized",
             fetcher: :empty_blocks_to_refetch
@@ -114,16 +115,49 @@ defmodule Indexer.Fetcher.EmptyBlocksSanitizer do
   end
 
   defp classify_blocks_from_result(result) do
-    result
-    |> Enum.reduce({[], []}, fn %{id: _id, result: block}, {non_empty_blocks, empty_blocks} ->
-      transactions = Map.get(block, "transactions") || []
+    # A spec-compliant JSON-RPC server returns `result: null` for blocks it
+    # cannot find (e.g. pruned or reorged). Skip those without crashing — the
+    # caller reconciles which requested blocks are missing and flags them for
+    # refetch.
+    Enum.reduce(result, {[], []}, fn
+      %{id: _id, result: nil}, acc ->
+        acc
 
-      if Enum.empty?(transactions) do
-        {non_empty_blocks, [block_fields(block, transactions) | empty_blocks]}
-      else
-        {[block_fields(block, transactions) | non_empty_blocks], empty_blocks}
-      end
+      %{id: _id, result: block}, {non_empty_blocks, empty_blocks} ->
+        transactions = Map.get(block, "transactions") || []
+
+        if Enum.empty?(transactions) do
+          {non_empty_blocks, [block_fields(block, transactions) | empty_blocks]}
+        else
+          {[block_fields(block, transactions) | non_empty_blocks], empty_blocks}
+        end
     end)
+  end
+
+  # Blocks the RPC returned nil for stay in `is_empty: nil, refetch_needed: false`,
+  # so without intervention the sanitizer's query would re-select them every cycle.
+  # Flag them `refetch_needed: true` to remove them from the query set and let the
+  # regular refetch path handle them.
+  defp process_missing_blocks(requested, non_empty_blocks, empty_blocks) do
+    returned = MapSet.new(non_empty_blocks ++ empty_blocks, & &1.number)
+
+    missing =
+      requested
+      |> Enum.map(& &1.number)
+      |> Enum.reject(&MapSet.member?(returned, &1))
+
+    case missing do
+      [] ->
+        :ok
+
+      numbers ->
+        Logger.warning(
+          "JSON-RPC returned nil for block numbers #{inspect(numbers)}; marking as refetch_needed",
+          fetcher: :empty_blocks_to_refetch
+        )
+
+        Block.set_refetch_needed(numbers)
+    end
   end
 
   defp block_fields(block, transactions) do
