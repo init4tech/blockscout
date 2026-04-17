@@ -140,6 +140,53 @@ defmodule Indexer.Fetcher.EmptyBlocksSanitizerTest do
     assert processed_block.refetch_needed == true, "invalid `refetch_needed` value set for processed block"
   end
 
+  test "marks block as refetch_needed when JSON-RPC returns nil result",
+       %{json_rpc_named_arguments: json_rpc_named_arguments} do
+    # Setup
+    block_to_process = insert(:block, is_empty: nil)
+    populate_database_with_dummy_blocks()
+    assert Repo.get!(Block, block_to_process.hash).is_empty == nil, "precondition to check setup correctness"
+    assert Repo.get!(Block, block_to_process.hash).refetch_needed == false, "precondition to check setup correctness"
+
+    encoded_expected_block_number = "0x" <> Integer.to_string(block_to_process.number, 16)
+
+    if json_rpc_named_arguments[:transport] == EthereumJSONRPC.Mox do
+      EthereumJSONRPC.Mox
+      |> stub(
+        :json_rpc,
+        fn [
+             %{
+               id: id,
+               method: "eth_getBlockByNumber",
+               params: [^encoded_expected_block_number, false]
+             }
+           ],
+           _options ->
+          {:ok, [%{id: id, result: nil}]}
+        end
+      )
+    end
+
+    EmptyBlocksSanitizer.Supervisor.Case.start_supervised!(json_rpc_named_arguments: json_rpc_named_arguments)
+
+    # Wait for the sanitizer to flag the nil-result block as refetch_needed.
+    # On the un-fixed code this never happens (the GenServer crashes on
+    # BadMapError), so `wait_for_results` would time out and fail the test.
+    processed_block =
+      wait_for_results(fn ->
+        Repo.one!(
+          from(block in Block,
+            where: block.hash == ^block_to_process.hash and block.refetch_needed == true
+          )
+        )
+      end)
+
+    assert processed_block.is_empty == nil, "is_empty should remain untouched for unresolved blocks"
+
+    assert processed_block.refetch_needed == true,
+           "refetch_needed should be set so the block exits the sanitizer's query set"
+  end
+
   test "only old enough blocks are sanitized", %{json_rpc_named_arguments: json_rpc_named_arguments} do
     # Setup
     block_to_process = insert(:block, is_empty: nil)
